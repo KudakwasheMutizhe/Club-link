@@ -1,4 +1,4 @@
-package com.example.club_link;
+package com.example.course_link;
 
 import android.app.AlertDialog;
 import android.content.Intent;
@@ -20,7 +20,7 @@ import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 
-import de.hdodenhof.circleimageview.CircleImageView;
+import de .hdodenhof.circleimageview.CircleImageView;
 
 public class profile extends AppCompatActivity {
 

@@ -1,4 +1,4 @@
-package com.example.club_link;
+package com.example.course_link;
 
 /**
  * Message model for Firebase

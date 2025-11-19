@@ -1,4 +1,4 @@
-package com.example.club_link;
+package com.example.course_link;
 
 import android.app.NotificationChannel;
 import android.app.NotificationManager;

@@ -1,5 +1,4 @@
-package com.example.events;
-
+package com.example.course_link;
 public class Event {
     public long id;
     public String title;

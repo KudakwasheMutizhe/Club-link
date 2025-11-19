@@ -1,4 +1,4 @@
-package com.example.club_link;
+package com.example.course_link;
 
 /**
  * Model class for chat preview in the chat list
