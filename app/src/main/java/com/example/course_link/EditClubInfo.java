@@ -1,0 +1,328 @@
+package com.example.course_link;
+
+import android.content.ContentValues;
+import android.content.Intent;
+import android.graphics.Bitmap;
+import android.net.Uri;
+import android.os.Bundle;
+import android.provider.MediaStore;
+import android.widget.EditText;
+import android.widget.ImageView;
+import android.widget.Toast;
+
+import androidx.activity.EdgeToEdge;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.annotation.NonNull;
+import androidx.appcompat.app.AppCompatActivity;
+import androidx.cardview.widget.CardView;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
+
+import com.bumptech.glide.Glide;
+import com.bumptech.glide.load.engine.DiskCacheStrategy;
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.textfield.TextInputEditText;
+import com.google.android.material.textfield.TextInputLayout;
+import com.google.android.gms.tasks.OnFailureListener;
+import com.google.android.gms.tasks.OnSuccessListener;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.storage.FirebaseStorage;
+import com.google.firebase.storage.StorageReference;
+
+public class EditClubInfo extends AppCompatActivity {
+
+    private static final String TAG = "EditClubInfo";
+
+    private CardView cameraCard, photoCard;
+    private ImageView imageView4, backImage;
+    ;
+    private EditText edtClubNameAdd;
+    private TextInputLayout tilDescription;
+    private TextInputEditText edtClubDescriptionAdd;
+    private MaterialButton btnSubmit, btnCancel, btnDelete;
+
+    private Uri imageUri = null;          // new selected image (if any)
+    private String originalImageUrl = ""; // existing Firebase Storage URL
+    private String clubId;                // Firebase key
+
+    private DatabaseReference clubRef;
+
+    // Activity Result launchers
+    private ActivityResultLauncher<Void> takePictureLauncher;
+    private ActivityResultLauncher<String> pickImageLauncher;
+
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        EdgeToEdge.enable(this);
+        setContentView(R.layout.activity_edit_club_info);
+
+        ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
+            Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+            v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
+            return insets;
+        });
+
+        bindViews();
+        initFirebase();
+        readIntentExtras();
+        setupImagePickers();
+        setupButtons();
+
+        backImage.setOnClickListener(v -> {
+            // Go back to the previous screen
+            finish();
+            // or: getOnBackPressedDispatcher().onBackPressed();
+        });
+
+    }
+
+    private void bindViews() {
+        cameraCard          = findViewById(R.id.cameraCard);
+        photoCard           = findViewById(R.id.photoCard);
+        imageView4          = findViewById(R.id.imageView4);
+        edtClubNameAdd      = findViewById(R.id.edtClubNameAdd);
+        tilDescription      = findViewById(R.id.tilDescription);
+        edtClubDescriptionAdd = findViewById(R.id.edtClubDescriptionAdd);
+        btnSubmit           = findViewById(R.id.btnSubmit);
+        btnCancel           = findViewById(R.id.btnCancel);
+        btnDelete             = findViewById(R.id.btnDelete);
+        backImage             = findViewById(R.id.backImage);
+    }
+
+
+    private void initFirebase() {
+        FirebaseDatabase database = FirebaseDatabase.getInstance();
+        DatabaseReference rootRef = database.getReference("ClubInfo");
+        // clubRef will be set after we know clubId (in readIntentExtras)
+        clubRef = rootRef;
+    }
+
+    private void readIntentExtras() {
+        Intent intent = getIntent();
+        clubId          = intent.getStringExtra("clubId");
+        String clubName = intent.getStringExtra("clubName");
+        String desc     = intent.getStringExtra("shortDescription");
+        originalImageUrl = intent.getStringExtra("imageUrl");
+
+        if (clubId == null || clubId.isEmpty()) {
+            Toast.makeText(this, "Missing club ID, cannot edit.", Toast.LENGTH_LONG).show();
+            finish();
+            return;
+        }
+
+        // Now point directly at /ClubInfo/<clubId>
+        clubRef = clubRef.child(clubId);
+
+        // Prefill fields
+        if (clubName != null) {
+            edtClubNameAdd.setText(clubName);
+        }
+        if (desc != null) {
+            edtClubDescriptionAdd.setText(desc);
+        }
+
+        // Load existing image
+        if (originalImageUrl != null && !originalImageUrl.isEmpty()) {
+            Glide.with(this)
+                    .load(originalImageUrl)
+                    .centerCrop()
+                    .diskCacheStrategy(DiskCacheStrategy.ALL)
+                    .into(imageView4);
+        }
+    }
+
+    private void setupImagePickers() {
+        // Camera: TakePicturePreview -> Bitmap -> save to gallery -> Uri
+        takePictureLauncher = registerForActivityResult(
+                new ActivityResultContracts.TakePicturePreview(),
+                (Bitmap bitmap) -> {
+                    if (bitmap != null) {
+                        imageView4.setImageBitmap(bitmap);
+                        Uri saved = saveImageToGallery(bitmap);
+                        if (saved != null) {
+                            imageUri = saved; // new image chosen
+                        }
+                    }
+                }
+        );
+
+        // Gallery: pick from device
+        pickImageLauncher = registerForActivityResult(
+                new ActivityResultContracts.GetContent(),
+                (Uri uri) -> {
+                    if (uri != null) {
+                        imageUri = uri;              // new image chosen
+                        imageView4.setImageURI(uri);
+                    }
+                }
+        );
+
+        cameraCard.setOnClickListener(v -> takePictureLauncher.launch(null));
+        photoCard.setOnClickListener(v -> pickImageLauncher.launch("image/*"));
+    }
+
+    private void setupButtons() {
+        btnCancel.setOnClickListener(v -> finish());
+
+        btnSubmit.setOnClickListener(v -> {
+            String name = edtClubNameAdd.getText().toString().trim();
+            String desc = edtClubDescriptionAdd.getText().toString().trim();
+
+            if (name.isEmpty() || desc.isEmpty()) {
+                Toast.makeText(this, "Please fill in all fields.", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            btnSubmit.setEnabled(false);
+
+            // If a new image was selected, upload it first
+            if (imageUri != null) {
+                uploadImageAndUpdateClub(name, desc);
+            } else {
+                // No new image → keep original URL
+                updateClubInFirebase(name, desc, originalImageUrl);
+            }
+        });
+
+        // 🔴 Delete button
+        btnDelete.setOnClickListener(v -> {
+            new androidx.appcompat.app.AlertDialog.Builder(EditClubInfo.this)
+                    .setTitle("Delete club")
+                    .setMessage("Are you sure you want to delete this club?")
+                    .setPositiveButton("Delete", (dialog, which) -> deleteClub())
+                    .setNegativeButton("Cancel", null)
+                    .show();
+        });
+    }
+
+    /**
+     * Upload the new image to Firebase Storage, then update club data with new download URL.
+     */
+    private void uploadImageAndUpdateClub(String name, String description) {
+        StorageReference storageRef = FirebaseStorage.getInstance()
+                .getReference()
+                .child("clubImages")
+                .child(clubId + ".jpg");
+
+        storageRef.putFile(imageUri)
+                .continueWithTask(task -> {
+                    if (!task.isSuccessful()) {
+                        throw task.getException();
+                    }
+                    return storageRef.getDownloadUrl();
+                })
+                .addOnSuccessListener(uri -> {
+                    String downloadUrl = uri.toString();
+                    updateClubInFirebase(name, description, downloadUrl);
+                })
+                .addOnFailureListener(e -> {
+                    btnSubmit.setEnabled(true);
+                    Toast.makeText(EditClubInfo.this,
+                            "Image upload failed: " + e.getMessage(),
+                            Toast.LENGTH_LONG
+                    ).show();
+                });
+    }
+
+    /**
+     * Actually update the club document in Realtime Database.
+     */
+    private void updateClubInFirebase(String name, String description, String imageUrl) {
+        ClubModal updated = new ClubModal();
+        updated.setClubId(clubId);
+        updated.setClubName(name);
+        updated.setShortDescription(description);
+        updated.setImagePath(imageUrl);
+
+        clubRef.setValue(updated)
+                .addOnSuccessListener(new OnSuccessListener<Void>() {
+                    @Override
+                    public void onSuccess(Void unused) {
+                        btnSubmit.setEnabled(true);
+                        Toast.makeText(EditClubInfo.this, "Club updated successfully", Toast.LENGTH_SHORT).show();
+
+                        // 🔹 Go to main page and clear back stack
+                        Intent intent = new Intent(EditClubInfo.this, MainActivity.class);
+                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                        startActivity(intent);
+                    }
+                })
+                .addOnFailureListener(new OnFailureListener() {
+                    @Override
+                    public void onFailure(@NonNull Exception e) {
+                        btnSubmit.setEnabled(true);
+                        Toast.makeText(EditClubInfo.this,
+                                "Failed to update club: " + e.getMessage(),
+                                Toast.LENGTH_LONG
+                        ).show();
+                    }
+                });
+    }
+
+    /**
+     * Save camera bitmap to gallery and return its Uri so we can upload to Firebase Storage.
+     */
+    private Uri saveImageToGallery(Bitmap bitmap) {
+        String savedImageURL = MediaStore.Images.Media.insertImage(
+                getContentResolver(),
+                bitmap,
+                "ClubImage_" + System.currentTimeMillis(),
+                "Club image"
+        );
+
+        if (savedImageURL != null) {
+            return Uri.parse(savedImageURL);
+        } else {
+            return null;
+        }
+    }
+
+    private void deleteClub() {
+        if (clubRef == null || clubId == null || clubId.isEmpty()) {
+            Toast.makeText(this, "Cannot delete: missing club reference.", Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        btnDelete.setEnabled(false);
+
+        // 1️⃣ Delete from Realtime Database
+        clubRef.removeValue()
+                .addOnSuccessListener(unused -> {
+
+                    // 2️⃣ (Optional but recommended) delete image from Firebase Storage
+                    StorageReference imgRef = FirebaseStorage.getInstance()
+                            .getReference()
+                            .child("clubImages")
+                            .child(clubId + ".jpg");
+
+                    imgRef.delete()
+                            .addOnSuccessListener(aVoid -> {
+                                // Image deleted, but even if this fails, the club is gone from DB.
+                            })
+                            .addOnFailureListener(e -> {
+                                // You can log or toast if you want, but don't block the flow.
+                            });
+
+                    Toast.makeText(EditClubInfo.this,
+                            "Club deleted successfully",
+                            Toast.LENGTH_SHORT
+                    ).show();
+
+                    // Go back to main screen and clear back stack
+                    Intent intent = new Intent(EditClubInfo.this, MainActivity.class);
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                    startActivity(intent);
+                })
+                .addOnFailureListener(e -> {
+                    btnDelete.setEnabled(true);
+                    Toast.makeText(EditClubInfo.this,
+                            "Failed to delete club: " + e.getMessage(),
+                            Toast.LENGTH_LONG
+                    ).show();
+                });
+    }
+}

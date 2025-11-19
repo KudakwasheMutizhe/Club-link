@@ -1,0 +1,11 @@
+<resources>
+    <string name="app_name">Course_link</string>
+    <string-array name="club_categories">
+        <item>Academic</item>
+        <item>Sports</item>
+        <item>Cultural</item>
+        <item>Religious</item>
+        <item>Arts &amp; Music</item>
+        <item>Technology</item>
+    </string-array>
+</resources>

@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "86774215605",
+    "project_id": "club-link-98acb",
+    "storage_bucket": "club-link-98acb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:86774215605:android:819d322b562eefd71d9ffc",
+        "android_client_info": {
+          "package_name": "com.example.course_link"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBwBsehWQlVQ3bDwaFOEnnZ70XBReluiho"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
