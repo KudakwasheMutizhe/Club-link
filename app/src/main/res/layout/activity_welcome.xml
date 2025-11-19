@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#17267A"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:padding="32dp">
+
+    <!-- ClubLink logo -->
+
+
+    <TextView
+        android:id="@+id/textView"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="ClubLink"
+        android:textAlignment="center"
+        android:textColor="#E2D8D8"
+        android:textSize="50sp"
+        android:textStyle="bold"
+        android:paddingBottom="20dp"/>
+
+    <ImageView
+        android:id="@+id/imgLogo"
+        android:layout_width="300dp"
+        android:layout_height="200dp"
+        android:layout_marginBottom="24dp"
+        android:contentDescription="ClubLink Logo"
+        android:src="@drawable/clublinklogo"
+        android:layout_marginTop="10dp"/>
+
+
+    <!-- Log In button -->
+
+    <!-- Sign Up button (outlined) -->
+    <Button
+        android:id="@+id/btnSignup"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@android:color/transparent"
+        android:backgroundTint="@android:color/white"
+        android:fontFamily="sans-serif-medium"
+        android:padding="12dp"
+        android:layout_margin="10dp"
+        android:strokeColor="@android:color/white"
+        android:text="Sign Up"
+        android:textAllCaps="false"
+        android:textColor="@android:color/white"
+        android:textSize="24sp" />
+
+    <Button
+        android:id="@+id/btnLogin"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:backgroundTint="#FDF8F8"
+        android:text="Log In"
+        android:textColor="#0B4CFD"
+        android:textSize="24sp"
+        android:layout_margin="10dp"/>
+
+</LinearLayout>

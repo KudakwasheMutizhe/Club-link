@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#DDDFE3"
+    android:gravity="center"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <!-- ClubLink logo -->
+
+    <!-- Page title -->
+    <ImageView
+        android:id="@+id/imgLogo"
+        android:layout_width="100dp"
+        android:layout_height="100dp"
+        android:layout_marginBottom="20dp"
+        android:contentDescription="ClubLink Logo"
+        android:src="@drawable/clublinklogo" />
+
+    <TextView
+        android:layout_marginBottom="32dp"
+        android:text="Welcome Back"
+        android:textColor="#17267A"
+        android:textSize="24sp"
+        android:textStyle="bold"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"/>
+
+    <!-- Username field -->
+    <EditText
+        android:id="@+id/etUsername"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        android:backgroundTint="#B3A8A8"
+        android:hint="Username"
+        android:background="@drawable/edittext_background"
+        android:inputType="textPersonName"
+        android:padding="12dp" />
+
+    <!-- Password field -->
+    <EditText
+        android:id="@+id/etPassword"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="24dp"
+        android:backgroundTint="#C8B6B6"
+        android:hint="Password"
+        android:background="@drawable/edittext_background"
+        android:inputType="textPassword"
+        android:padding="12dp" />
+
+    <!-- Login button -->
+    <Button
+        android:id="@+id/btnLogin"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="16dp"
+        android:backgroundTint="#17267A"
+        android:text="Log In"
+        android:textAllCaps="false"
+        android:textColor="#FFFFFF"
+        android:textSize="16sp" />
+
+    <!-- Sign up text -->
+    <TextView
+        android:id="@+id/tvSignup"
+        android:text="Don't have an account? Sign up"
+        android:textColor="#0B4DFF"
+        android:textSize="14sp"
+        android:layout_height="20sp"
+        android:layout_width="wrap_content"/>
+</LinearLayout>
