@@ -86,7 +86,7 @@ public class AnnouncementsActivity extends AppCompatActivity implements Announce
         fabAddAnnouncement = findViewById(R.id.fabAddAnnouncement);
 
         // Set up RecyclerView
-        adapter = new AnnouncementAdapter(this);
+        adapter = new AnnouncementAdapter((AnnouncementAdapter.OnAnnouncementClickListener) this);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setAdapter(adapter);
 

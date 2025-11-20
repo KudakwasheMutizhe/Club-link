@@ -101,7 +101,7 @@ public class AddAnnouncementActivity extends AppCompatActivity {
 
         long now = System.currentTimeMillis();
         // Your existing model (keep as-is)
-        AnnouncementModal a = new AnnouncementModal(key, title, message, author, now, false);
+        com.example.club_link.AnnouncementModal a = new com.example.club_link.AnnouncementModal(key, title, message, author, now, false);
 
         // Kick off the write
         ref.child(key).setValue(a)

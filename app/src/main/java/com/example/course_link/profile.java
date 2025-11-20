@@ -110,7 +110,7 @@ public class profile extends AppCompatActivity {
 
         // Edit profile button
         findViewById(R.id.btnEditProfile).setOnClickListener(v -> {
-            Intent intent = new Intent(this, EditProfileActivity.class);
+            Intent intent = new Intent(this,EditProfileActivity.class);
             intent.putExtra("displayName", tvDisplayName.getText().toString());
             intent.putExtra("bio", tvBio.getText().toString());
             intent.putExtra("campus", tvCampus.getText().toString());
