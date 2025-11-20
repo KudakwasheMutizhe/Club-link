@@ -1,4 +1,4 @@
-package com.example.events;
+package com.example.course_link;
 
 import android.content.Context;
 import android.database.sqlite.SQLiteDatabase;

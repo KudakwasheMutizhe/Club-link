@@ -1,5 +1,9 @@
 <resources>
     <string name="app_name">Course_link</string>
+    <style name="ShapeAppearanceOverlay_Events_Rounded20">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">20dp</item>
+    </style>
     <string-array name="club_categories">
         <item>Academic</item>
         <item>Sports</item>

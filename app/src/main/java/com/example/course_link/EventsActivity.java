@@ -12,10 +12,10 @@ import androidx.appcompat.widget.SearchView;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
 
-import com.example.events.R;
-import com.example.events.Event;
-import com.example.events.EventsRepository;
-import com.example.events.databinding.ActivityEventsBinding;
+import com.example.course_link.R;
+import com.example.course_link.Event;
+import com.example.course_link.EventsRepository;
+import com.example.course_link.databinding.ActivityEventsBinding;
 
 
 import java.util.List;

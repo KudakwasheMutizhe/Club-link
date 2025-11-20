@@ -1,8 +1,8 @@
-package com.example.events;
+package com.example.course_link;
 
 import android.os.Bundle;
 import androidx.appcompat.app.AppCompatActivity;
-import com.example.events.databinding.ActivityEventDetailsBinding;
+import com.example.course_link.databinding.ActivityEventDetailsBinding;
 
 
 public class EventDetailsActivity extends AppCompatActivity {

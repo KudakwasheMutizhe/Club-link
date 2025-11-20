@@ -1,4 +1,4 @@
-package com.example.events;
+package com.example.course_link;
 import android.text.format.DateFormat;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -13,8 +13,8 @@ import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.ListAdapter;
 import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.Glide;
-import com.example.events.R;
-import com.example.events.Event;
+import com.example.course_link.R;
+import com.example.course_link.Event;
 
 
 import java.util.Locale;
