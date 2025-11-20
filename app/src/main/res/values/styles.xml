@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <!-- ✅ Rounded chip style used in MainActivity -->
+    <style name="RoundedChipStyle" parent="Widget.MaterialComponents.Chip.Choice">
+        <item name="chipCornerRadius">24dp</item>
+        <item name="chipStrokeWidth">1dp</item>
+        <item name="chipStrokeColor">#D0D0D0</item>
+        <item name="chipBackgroundColor">@android:color/white</item>
+        <item name="android:textColor">@android:color/black</item>
+        <item name="android:textSize">14sp</item>
+    </style>
+
+
+</resources>

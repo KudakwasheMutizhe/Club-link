@@ -1,5 +1,6 @@
 package com.example.course_link;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.Toast;
@@ -13,7 +14,23 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+import android.content.res.ColorStateList;
+import androidx.core.content.ContextCompat;
+import android.graphics.Color;
+import android.content.res.ColorStateList;
+import androidx.core.content.ContextCompat;
+import android.view.ContextThemeWrapper;
 
+import com.google.android.material.card.MaterialCardView;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
+
+
+
+
+import android.view.ContextThemeWrapper;     // ✅ import for rounded chip style
+
+import com.google.android.material.chip.Chip;
+import com.google.android.material.chip.ChipGroup;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -24,42 +41,63 @@ import java.util.ArrayList;
 
 public class MainActivity extends AppCompatActivity {
 
-    RecyclerView recyclerView;
-    ArrayList<ClubModal> clubModalArrayList = new ArrayList<>();
-    ClubAdabter clubAdabter;
-    SearchView searchView;
-
-    LinearLayoutManager linearLayoutManager;
-
-    // Firebase components for real-time database interaction
-    private DatabaseReference databaseReference;
-    private FirebaseDatabase firebaseDatabase;
-
     private static final String TAG = "MainActivity";
 
+    private RecyclerView recyclerView;
+    private SearchView searchView;
+    private ChipGroup chipGroupCategories;
+
+    private ClubAdabter clubAdabter;
+    private LinearLayoutManager linearLayoutManager;
+
+    // Data
+    private ArrayList<ClubModal> fullClubList = new ArrayList<>();
+    private String activeCategoryFilter = ""; // empty = no category filter
+
+    // Firebase
+    private FirebaseDatabase firebaseDatabase;
+    private DatabaseReference databaseReference;
+    MaterialCardView mcvAddNewClub;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_main);
+
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
 
-        // Initialize Firebase Database instance and reference to "CourseInfo" node
+        // Firebase init
         firebaseDatabase = FirebaseDatabase.getInstance();
         databaseReference = firebaseDatabase.getReference("ClubInfo");
 
+        // Bind views
         recyclerView = findViewById(R.id.clubRV);
         searchView = findViewById(R.id.searchView);
+        chipGroupCategories = findViewById(R.id.chipGroupCategories);
+        mcvAddNewClub = findViewById(R.id.mcvAddNewClub);
 
+        mcvAddNewClub.setOnClickListener(v -> {
+            Intent intent = new Intent(MainActivity.this, AddNewClubs.class);
+            startActivity(intent);
+        });
+
+        // Setup RecyclerView + Adapter
+        clubAdabter = new ClubAdabter(this, new ArrayList<>());
+        recyclerView.setAdapter(clubAdabter);
+        linearLayoutManager = new LinearLayoutManager(this);
+        recyclerView.setLayoutManager(linearLayoutManager);
+
+        // SearchView behavior
         searchView.clearFocus();
         searchView.setOnQueryTextListener(new SearchView.OnQueryTextListener() {
             @Override
             public boolean onQueryTextSubmit(String query) {
+                // We already filter as user types
                 return false;
             }
 
@@ -70,72 +108,186 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
-        // Initialize the ArrayList that will hold the course data retrieved from Firebase
-         clubModalArrayList = new ArrayList<>();
+        // Setup category chips ("All", Academic, Sports, ...)
+        setupCategoryChips();
 
-        clubAdabter = new ClubAdabter(this, clubModalArrayList);
-        recyclerView.setAdapter(clubAdabter);
-
-        linearLayoutManager = new LinearLayoutManager(this);
-        recyclerView.setLayoutManager(linearLayoutManager);
-
-        // Fetch course data from Firebase and populate the RecyclerView
+        // Load clubs from Firebase
         fetchClubsFromFirebase();
-
-    }
-
-    private void filterList(String newText) {
-        ArrayList<ClubModal> filteredList = new ArrayList<>();
-        for (ClubModal clubModal : clubModalArrayList){
-            if(clubModal.getClubName().toLowerCase().contains(newText.toLowerCase()) || clubModal.getShortDescription().toLowerCase().contains(newText.toLowerCase())){
-                filteredList.add(clubModal);
-            }
-        }
-
-        if (clubAdabter != null) {
-            clubAdabter.setFilteredList(filteredList);
-        }
-
-        if(filteredList.isEmpty()){
-            Toast.makeText(this, "No data found", Toast.LENGTH_SHORT).show();
-        }else {
-            clubAdabter.setFilteredList(filteredList);
-        }
     }
 
     /**
-     * Method to fetch course data from Firebase and update the UI.
-     * It uses a ValueEventListener to listen for any changes in the "CourseInfo" node.
+     * Create rounded category chips and hook up filter logic.
+     */
+    private void setupCategoryChips() {
+
+        // Main blue color for the theme
+        String BLUE = "#3B82F6";          // modern blue
+        String BLUE_DARK = "#1D4ED8";     // darker blue (for text if you want)
+        String TEXT_DARK = "#0F172A";     // near-black for fallback
+
+        // Background colors for checked / unchecked
+        ColorStateList chipBgColors = new ColorStateList(
+                new int[][]{
+                        new int[]{android.R.attr.state_checked},     // checked
+                        new int[]{-android.R.attr.state_checked}     // unchecked
+                },
+                new int[]{
+                        Color.parseColor(BLUE),                      // selected bg (blue)
+                        Color.parseColor("#FFFFFF")                  // unselected bg (white)
+                }
+        );
+
+        // Text colors for checked / unchecked
+        ColorStateList chipTextColors = new ColorStateList(
+                new int[][]{
+                        new int[]{android.R.attr.state_checked},
+                        new int[]{-android.R.attr.state_checked}
+                },
+                new int[]{
+                        Color.parseColor("#FFFFFF"),                 // selected text (white)
+                        Color.parseColor(BLUE_DARK)                  // unselected text (dark blue)
+                }
+        );
+
+        // Stroke (border) color – blue outline
+        ColorStateList chipStrokeColors = ColorStateList.valueOf(
+                Color.parseColor(BLUE)                              // blue border
+        );
+
+        // "All" chip
+        Chip allChip = new Chip(
+                new ContextThemeWrapper(this, R.style.RoundedChipStyle),
+                null,
+                0
+        );
+        allChip.setText("All");
+        allChip.setCheckable(true);
+        allChip.setChecked(true);
+        allChip.setChipBackgroundColor(chipBgColors);
+        allChip.setTextColor(chipTextColors);
+        allChip.setChipStrokeColor(chipStrokeColors);
+        allChip.setChipStrokeWidth(1f);
+        chipGroupCategories.addView(allChip);
+
+        // Other category chips
+        String[] categories = getResources().getStringArray(R.array.club_categories);
+        for (String cat : categories) {
+            Chip chip = new Chip(
+                    new ContextThemeWrapper(this, R.style.RoundedChipStyle),
+                    null,
+                    0
+            );
+            chip.setText(cat);
+            chip.setCheckable(true);
+            chip.setChipBackgroundColor(chipBgColors);
+            chip.setTextColor(chipTextColors);
+            chip.setChipStrokeColor(chipStrokeColors);
+            chip.setChipStrokeWidth(1f);
+            chipGroupCategories.addView(chip);
+        }
+
+        chipGroupCategories.setOnCheckedStateChangeListener((group, checkedIds) -> {
+            if (checkedIds == null || checkedIds.isEmpty()) {
+                activeCategoryFilter = "";
+            } else {
+                int id = checkedIds.get(0);
+                Chip selectedChip = group.findViewById(id);
+                if (selectedChip != null) {
+                    String text = selectedChip.getText().toString();
+                    activeCategoryFilter = text.equalsIgnoreCase("All") ? "" : text;
+                }
+            }
+
+            String currentQuery = searchView.getQuery() != null
+                    ? searchView.getQuery().toString()
+                    : "";
+            filterList(currentQuery);
+        });
+    }
+
+
+
+
+    /**
+     * Fetch clubs from Firebase Realtime Database and update list.
      */
     private void fetchClubsFromFirebase() {
-        // Adding a ValueEventListener to listen for changes in the Firebase "CourseInfo" node
-
         databaseReference.addValueEventListener(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
-                // Clear the existing data in the list before adding the new data
-                clubModalArrayList.clear();
+                fullClubList.clear();
 
-                // Loop through all data snapshots (courses) in the Firebase node
                 for (DataSnapshot dataSnapshot : snapshot.getChildren()) {
                     ClubModal clubModal = dataSnapshot.getValue(ClubModal.class);
-
-                    // If the object is not null, add it to the course list
                     if (clubModal != null) {
-                        Log.d(TAG, "Loaded club: id=" + clubModal.getClubId() + " name=" + clubModal.getClubName() + " imagePath=" + clubModal.getImagePath());
-                        clubModalArrayList.add(clubModal);
+                        Log.d(TAG, "Loaded club: id=" + clubModal.getClubId()
+                                + " name=" + clubModal.getClubName()
+                                + " category=" + clubModal.getCategory()
+                                + " imagePath=" + clubModal.getImagePath());
+                        fullClubList.add(clubModal);
                     }
                 }
 
-                // Notify the adapter that the data has been updated
-                clubAdabter.notifyDataSetChanged();
+                // Initially show all clubs
+                clubAdabter.setFilteredList(new ArrayList<>(fullClubList));
             }
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
-                // Handle the error if the Firebase operation is cancelled or fails
-                Toast.makeText(MainActivity.this, "Failed to load data: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                Toast.makeText(MainActivity.this,
+                        "Failed to load data: " + error.getMessage(),
+                        Toast.LENGTH_SHORT).show();
             }
         });
+    }
+
+    /**
+     * Filter list based on text query + active category filter.
+     */
+    private void filterList(String newText) {
+        if (clubAdabter == null) return;
+
+        String query = (newText == null) ? "" : newText.trim().toLowerCase();
+        String categoryFilterLower = activeCategoryFilter == null
+                ? ""
+                : activeCategoryFilter.trim().toLowerCase();
+
+        // Nothing typed & no category filter → show all
+        if (query.isEmpty() && categoryFilterLower.isEmpty()) {
+            clubAdabter.setFilteredList(new ArrayList<>(fullClubList));
+            return;
+        }
+
+        ArrayList<ClubModal> filteredList = new ArrayList<>();
+
+        for (ClubModal club : fullClubList) {
+            if (club == null) continue;
+
+            String name = club.getClubName() != null
+                    ? club.getClubName().toLowerCase()
+                    : "";
+            String desc = club.getShortDescription() != null
+                    ? club.getShortDescription().toLowerCase()
+                    : "";
+            String category = club.getCategory() != null
+                    ? club.getCategory().toLowerCase()
+                    : "";
+
+            boolean matchesText =
+                    query.isEmpty()
+                            || name.contains(query)
+                            || desc.contains(query)
+                            || category.contains(query);
+
+            boolean matchesCategory =
+                    categoryFilterLower.isEmpty()
+                            || category.equals(categoryFilterLower);
+
+            if (matchesText && matchesCategory) {
+                filteredList.add(club);
+            }
+        }
+
+        clubAdabter.setFilteredList(filteredList);
     }
 }

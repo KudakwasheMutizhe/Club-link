@@ -46,7 +46,8 @@ public class AddNewClubs extends AppCompatActivity {
     private static final String TAG = "AddNewClubs";
 
     CardView cameraCard, photoCard;
-    ImageView imageView;
+    ImageView imageView, backImage;
+
     Uri imageUri;
     ClubModal clubModal;
 
@@ -79,6 +80,22 @@ public class AddNewClubs extends AppCompatActivity {
         btnSubmit = findViewById(R.id.btnSubmit);
         btnCancel = findViewById(R.id.btnCancel);
         actCategory = findViewById(R.id.actCategory);
+        backImage = findViewById(R.id.backImage);
+
+        backImage.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                // Go back to previous screen
+                finish();   // or onBackPressed();
+            }
+        });
+
+        btnCancel.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                finish();  // closes AddNewClubs and returns to previous Activity
+            }
+        });
 
         // Load categories from resources
         String[] categories = getResources().getStringArray(R.array.club_categories);
@@ -244,6 +261,8 @@ public class AddNewClubs extends AppCompatActivity {
                     imageView.setImageDrawable(null);
                     imageUri = null;
                     btnSubmit.setEnabled(true);
+
+                    finish();
                 })
                 .addOnFailureListener(e -> {
                     btnSubmit.setEnabled(true);

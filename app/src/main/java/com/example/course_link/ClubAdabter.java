@@ -45,8 +45,15 @@ public class ClubAdabter extends RecyclerView.Adapter<ClubAdabter.ViewHolder> {
     @Override
     public void onBindViewHolder(@NonNull ClubAdabter.ViewHolder holder, int position) {
         ClubModal model = clubModalArrayList.get(position);
+
         holder.txtClubName.setText(model.getClubName());
         holder.txtClubShortDescription.setText(model.getShortDescription());
+
+        // Optional: log to verify category + id
+        Log.d(TAG, "Bind club: id=" + model.getClubId()
+                + " name=" + model.getClubName()
+                + " category=" + model.getCategory()
+                + " imagePath=" + model.getImagePath());
 
         // 🔹 Load image from Firebase Storage URL using Glide
         String imageUrl = model.getImagePath();   // this should now be the download URL
@@ -66,7 +73,7 @@ public class ClubAdabter extends RecyclerView.Adapter<ClubAdabter.ViewHolder> {
         }
 
         holder.itemView.setOnClickListener(view -> {
-            int selectPosition = holder.getAbsoluteAdapterPosition();
+            int selectPosition = holder.getBindingAdapterPosition();
             if (selectPosition == RecyclerView.NO_POSITION) return;
 
             ClubModal clicked = clubModalArrayList.get(selectPosition);
@@ -74,20 +81,18 @@ public class ClubAdabter extends RecyclerView.Adapter<ClubAdabter.ViewHolder> {
             intent.putExtra("clubName", clicked.getClubName());
             intent.putExtra("shortDescription", clicked.getShortDescription());
             intent.putExtra("imageUrl", clicked.getImagePath());
-            intent.putExtra("clubId", clicked.getClubId());   // 🔹 add this
+            intent.putExtra("clubId", clicked.getClubId());
+            intent.putExtra("category", clicked.getCategory());  // ⬅️ pass category too
             context.startActivity(intent);
         });
-
-
     }
-
 
     @Override
     public int getItemCount() {
         return clubModalArrayList.size();
     }
 
-    public static class ViewHolder extends RecyclerView.ViewHolder{
+    public static class ViewHolder extends RecyclerView.ViewHolder {
         TextView txtClubName, txtClubShortDescription;
         ImageView clubImage;
 
@@ -96,6 +101,7 @@ public class ClubAdabter extends RecyclerView.Adapter<ClubAdabter.ViewHolder> {
             txtClubName = itemView.findViewById(R.id.txtNameClub);
             txtClubShortDescription = itemView.findViewById(R.id.txtShortDescription);
             clubImage = itemView.findViewById(R.id.imageClub);
+            // If you add a category TextView in the row layout, you can bind it here too.
         }
     }
 }

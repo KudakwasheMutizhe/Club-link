@@ -1,11 +1,12 @@
 package com.example.course_link;
 
-import android.content.ContentValues;
 import android.content.Intent;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
+import android.widget.ArrayAdapter;
+import android.widget.AutoCompleteTextView;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.Toast;
@@ -38,15 +39,16 @@ public class EditClubInfo extends AppCompatActivity {
 
     private CardView cameraCard, photoCard;
     private ImageView imageView4, backImage;
-    ;
     private EditText edtClubNameAdd;
-    private TextInputLayout tilDescription;
+    private TextInputLayout tilDescription, tilCategory;
     private TextInputEditText edtClubDescriptionAdd;
+    private AutoCompleteTextView actCategory;
     private MaterialButton btnSubmit, btnCancel, btnDelete;
 
     private Uri imageUri = null;          // new selected image (if any)
     private String originalImageUrl = ""; // existing Firebase Storage URL
     private String clubId;                // Firebase key
+    private String originalCategory = ""; // existing category
 
     private DatabaseReference clubRef;
 
@@ -68,45 +70,53 @@ public class EditClubInfo extends AppCompatActivity {
 
         bindViews();
         initFirebase();
+        setupCategoryDropdown();
         readIntentExtras();
         setupImagePickers();
         setupButtons();
 
-        backImage.setOnClickListener(v -> {
-            // Go back to the previous screen
-            finish();
-            // or: getOnBackPressedDispatcher().onBackPressed();
-        });
-
+        backImage.setOnClickListener(v -> finish());
     }
 
     private void bindViews() {
-        cameraCard          = findViewById(R.id.cameraCard);
-        photoCard           = findViewById(R.id.photoCard);
-        imageView4          = findViewById(R.id.imageView4);
-        edtClubNameAdd      = findViewById(R.id.edtClubNameAdd);
-        tilDescription      = findViewById(R.id.tilDescription);
+        cameraCard            = findViewById(R.id.cameraCard);
+        photoCard             = findViewById(R.id.photoCard);
+        imageView4            = findViewById(R.id.imageView4);
+        edtClubNameAdd        = findViewById(R.id.edtClubNameAdd);
+        tilDescription        = findViewById(R.id.tilDescription);
         edtClubDescriptionAdd = findViewById(R.id.edtClubDescriptionAdd);
-        btnSubmit           = findViewById(R.id.btnSubmit);
-        btnCancel           = findViewById(R.id.btnCancel);
+        tilCategory           = findViewById(R.id.tilCategory);
+        actCategory           = findViewById(R.id.actCategory);
+        btnSubmit             = findViewById(R.id.btnSubmit);
+        btnCancel             = findViewById(R.id.btnCancel);
         btnDelete             = findViewById(R.id.btnDelete);
         backImage             = findViewById(R.id.backImage);
     }
 
-
     private void initFirebase() {
         FirebaseDatabase database = FirebaseDatabase.getInstance();
         DatabaseReference rootRef = database.getReference("ClubInfo");
-        // clubRef will be set after we know clubId (in readIntentExtras)
+        // clubRef will be set properly once we know clubId (in readIntentExtras)
         clubRef = rootRef;
     }
 
+    private void setupCategoryDropdown() {
+        String[] categories = getResources().getStringArray(R.array.club_categories);
+        ArrayAdapter<String> adapter =
+                new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, categories);
+        actCategory.setAdapter(adapter);
+
+        // make dropdown open when clicked
+        actCategory.setOnClickListener(v -> actCategory.showDropDown());
+    }
+
     private void readIntentExtras() {
-        Intent intent = getIntent();
-        clubId          = intent.getStringExtra("clubId");
-        String clubName = intent.getStringExtra("clubName");
-        String desc     = intent.getStringExtra("shortDescription");
-        originalImageUrl = intent.getStringExtra("imageUrl");
+        Intent intent      = getIntent();
+        clubId             = intent.getStringExtra("clubId");
+        String clubName    = intent.getStringExtra("clubName");
+        String desc        = intent.getStringExtra("shortDescription");
+        originalImageUrl   = intent.getStringExtra("imageUrl");
+        originalCategory   = intent.getStringExtra("category");
 
         if (clubId == null || clubId.isEmpty()) {
             Toast.makeText(this, "Missing club ID, cannot edit.", Toast.LENGTH_LONG).show();
@@ -123,6 +133,9 @@ public class EditClubInfo extends AppCompatActivity {
         }
         if (desc != null) {
             edtClubDescriptionAdd.setText(desc);
+        }
+        if (originalCategory != null && !originalCategory.isEmpty()) {
+            actCategory.setText(originalCategory, false);
         }
 
         // Load existing image
@@ -169,10 +182,11 @@ public class EditClubInfo extends AppCompatActivity {
         btnCancel.setOnClickListener(v -> finish());
 
         btnSubmit.setOnClickListener(v -> {
-            String name = edtClubNameAdd.getText().toString().trim();
-            String desc = edtClubDescriptionAdd.getText().toString().trim();
+            String name            = edtClubNameAdd.getText().toString().trim();
+            String desc            = edtClubDescriptionAdd.getText().toString().trim();
+            String selectedCategory = actCategory.getText().toString().trim();
 
-            if (name.isEmpty() || desc.isEmpty()) {
+            if (name.isEmpty() || desc.isEmpty() || selectedCategory.isEmpty()) {
                 Toast.makeText(this, "Please fill in all fields.", Toast.LENGTH_SHORT).show();
                 return;
             }
@@ -181,14 +195,14 @@ public class EditClubInfo extends AppCompatActivity {
 
             // If a new image was selected, upload it first
             if (imageUri != null) {
-                uploadImageAndUpdateClub(name, desc);
+                uploadImageAndUpdateClub(name, desc, selectedCategory);
             } else {
                 // No new image → keep original URL
-                updateClubInFirebase(name, desc, originalImageUrl);
+                updateClubInFirebase(name, desc, originalImageUrl, selectedCategory);
             }
         });
 
-        // 🔴 Delete button
+        // Delete button
         btnDelete.setOnClickListener(v -> {
             new androidx.appcompat.app.AlertDialog.Builder(EditClubInfo.this)
                     .setTitle("Delete club")
@@ -202,7 +216,7 @@ public class EditClubInfo extends AppCompatActivity {
     /**
      * Upload the new image to Firebase Storage, then update club data with new download URL.
      */
-    private void uploadImageAndUpdateClub(String name, String description) {
+    private void uploadImageAndUpdateClub(String name, String description, String category) {
         StorageReference storageRef = FirebaseStorage.getInstance()
                 .getReference()
                 .child("clubImages")
@@ -217,7 +231,7 @@ public class EditClubInfo extends AppCompatActivity {
                 })
                 .addOnSuccessListener(uri -> {
                     String downloadUrl = uri.toString();
-                    updateClubInFirebase(name, description, downloadUrl);
+                    updateClubInFirebase(name, description, downloadUrl, category);
                 })
                 .addOnFailureListener(e -> {
                     btnSubmit.setEnabled(true);
@@ -231,12 +245,16 @@ public class EditClubInfo extends AppCompatActivity {
     /**
      * Actually update the club document in Realtime Database.
      */
-    private void updateClubInFirebase(String name, String description, String imageUrl) {
+    private void updateClubInFirebase(String name,
+                                      String description,
+                                      String imageUrl,
+                                      String category) {
         ClubModal updated = new ClubModal();
         updated.setClubId(clubId);
         updated.setClubName(name);
         updated.setShortDescription(description);
         updated.setImagePath(imageUrl);
+        updated.setCategory(category);
 
         clubRef.setValue(updated)
                 .addOnSuccessListener(new OnSuccessListener<Void>() {
@@ -245,7 +263,7 @@ public class EditClubInfo extends AppCompatActivity {
                         btnSubmit.setEnabled(true);
                         Toast.makeText(EditClubInfo.this, "Club updated successfully", Toast.LENGTH_SHORT).show();
 
-                        // 🔹 Go to main page and clear back stack
+                        // Go to main page and clear back stack
                         Intent intent = new Intent(EditClubInfo.this, MainActivity.class);
                         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                         startActivity(intent);
@@ -289,11 +307,11 @@ public class EditClubInfo extends AppCompatActivity {
 
         btnDelete.setEnabled(false);
 
-        // 1️⃣ Delete from Realtime Database
+        // 1) Delete from Realtime Database
         clubRef.removeValue()
                 .addOnSuccessListener(unused -> {
 
-                    // 2️⃣ (Optional but recommended) delete image from Firebase Storage
+                    // 2) (Optional) delete image from Firebase Storage
                     StorageReference imgRef = FirebaseStorage.getInstance()
                             .getReference()
                             .child("clubImages")
@@ -301,10 +319,10 @@ public class EditClubInfo extends AppCompatActivity {
 
                     imgRef.delete()
                             .addOnSuccessListener(aVoid -> {
-                                // Image deleted, but even if this fails, the club is gone from DB.
+                                // Image deleted
                             })
                             .addOnFailureListener(e -> {
-                                // You can log or toast if you want, but don't block the flow.
+                                // Silent fail for image delete
                             });
 
                     Toast.makeText(EditClubInfo.this,
