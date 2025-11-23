@@ -70,43 +70,6 @@
             app:tint="#007AFF" />
     </LinearLayout>
 
-    <!-- Bottom Navigation Bar -->
-    <LinearLayout
-        android:id="@+id/bottomNavBar"
-        android:layout_width="match_parent"
-        android:layout_height="60dp"
-        android:orientation="horizontal"
-        android:background="#FFFFFF"
-        android:weightSum="4">
 
-        <Button
-            android:id="@+id/btnMessages"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:text="Messages" />
-
-        <Button
-            android:id="@+id/btnAnnouncements"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:text="Announcements" />
-
-        <Button
-            android:id="@+id/btnProfile"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:text="Profile" />
-
-        <Button
-            android:id="@+id/btnNotifications"
-            android:layout_width="0dp"
-            android:layout_height="match_parent"
-            android:layout_weight="1"
-            android:text="Notifications" />
-
-    </LinearLayout>
 
 </LinearLayout>

@@ -15,14 +15,14 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
+import com.google.android.material.bottomnavigation.BottomNavigationView;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
-
-
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import java.util.ArrayList;
 import java.util.UUID;
@@ -80,13 +80,65 @@ public class AnnouncementsActivity extends AppCompatActivity implements Announce
             return insets;
         });
 
-        // Initialize views
+        // ---------- Bottom Navigation ----------
+        BottomNavigationView bottomNavigationView = findViewById(R.id.bottomNavigationView);
+        if (bottomNavigationView != null) {
+
+// === START: CORRECTED NAVIGATION BLOCK FOR AnnouncementsActivity.java ===
+
+// This flag prevents the listener from re-navigating when the screen first loads.
+            final boolean[] isInitialSelection = {true};
+
+            bottomNavigationView.setOnItemSelectedListener(item -> {
+                // If this is the first selection event (on screen load), ignore it.
+                if (isInitialSelection[0]) {
+                    isInitialSelection[0] = false; // Mark as handled
+                    return true; // Consume the event, but do nothing.
+                }
+
+                int itemId = item.getItemId();
+
+                if (itemId == R.id.nav_home) {
+                    startActivity(new Intent(AnnouncementsActivity.this, MainActivity.class));
+                    finish();
+                    return true;
+                } else if (itemId == R.id.nav_events) {
+                    startActivity(new Intent(AnnouncementsActivity.this, EventsActivity.class));
+                    finish();
+                    return true;
+                } else if (itemId == R.id.nav_messages) {
+                    Intent intent = new Intent(AnnouncementsActivity.this, ChatListActivity.class);
+                    intent.putExtra("CHAT_ID", "GLOBAL_CHAT");
+                    intent.putExtra("CHAT_NAME", "Messages");
+                    startActivity(intent);
+                    finish();
+                    return true;
+                } else if (itemId == R.id.nav_announcements) {
+                    // CORRECTED: Already on the announcements screen, do nothing.
+                    return true;
+                } else if (itemId == R.id.nav_profile) {
+                    // CORRECTED: This should start the profile activity.
+                    startActivity(new Intent(AnnouncementsActivity.this, profile.class));
+                    finish();
+                    return true;
+                }
+
+                return false;
+            });
+
+// === END: CORRECTED NAVIGATION BLOCK ===
+            bottomNavigationView.setSelectedItemId(R.id.nav_announcements);  // highlight Announcements tab
+
+
+        }
+
+        // ---------- Initialize views ----------
         recyclerView = findViewById(R.id.rvAnnouncements);
         emptyState = findViewById(R.id.emptyState);
         fabAddAnnouncement = findViewById(R.id.fabAddAnnouncement);
 
         // Set up RecyclerView
-        adapter = new AnnouncementAdapter((AnnouncementAdapter.OnAnnouncementClickListener) this);
+        adapter = new AnnouncementAdapter(this);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setAdapter(adapter);
 
@@ -96,7 +148,7 @@ public class AnnouncementsActivity extends AppCompatActivity implements Announce
             addAnnouncementLauncher.launch(intent);
         });
 
-        // Load announcements
+        // Load announcements from Firebase
         loadAnnouncements();
     }
 
@@ -104,7 +156,7 @@ public class AnnouncementsActivity extends AppCompatActivity implements Announce
         dbRef = FirebaseDatabase.getInstance(DB_URL)
                 .getReference("announcements");
 
-// Listen for all announcements ordered by time (newest first in code)
+        // Listen for all announcements ordered by time (we sort newest first in code)
         dbRef.orderByChild("createdAt").addValueEventListener(new ValueEventListener() {
             @Override public void onDataChange(@NonNull DataSnapshot snapshot) {
                 announcements.clear();
@@ -112,26 +164,32 @@ public class AnnouncementsActivity extends AppCompatActivity implements Announce
                     AnnouncementModal a = child.getValue(AnnouncementModal.class);
                     if (a != null) announcements.add(a);
                 }
+
                 // newest first
                 announcements.sort((a, b) -> Long.compare(b.getCreatedAt(), a.getCreatedAt()));
                 updateAnnouncementsList();
 
                 // If we just created one, scroll to it and open detail once
                 if (justCreatedId != null) {
-                    int index = IntStream.range(0, announcements.size()).filter(i -> justCreatedId.equals(announcements.get(i).getId())).findFirst().orElse(-1);
+                    int index = IntStream.range(0, announcements.size())
+                            .filter(i -> justCreatedId.equals(announcements.get(i).getId()))
+                            .findFirst()
+                            .orElse(-1);
+
                     if (index >= 0) {
                         recyclerView.scrollToPosition(index);
                         recyclerView.postDelayed(() -> {
                             onAnnouncementClick(announcements.get(index));
-                        }, 3000); // wait 600ms before opening detail
+                        }, 600); // small delay before opening detail
                     }
                     justCreatedId = null;
-
                 }
             }
-            @Override public void onCancelled(@NonNull DatabaseError error) { /* show toast if you like */ }
-        });
 
+            @Override public void onCancelled(@NonNull DatabaseError error) {
+                // Optional: show a toast here
+            }
+        });
     }
 
     private void updateAnnouncementsList() {
@@ -145,6 +203,7 @@ public class AnnouncementsActivity extends AppCompatActivity implements Announce
         }
     }
 
+    // Just sample data helper if you ever want it (currently unused)
     private void addSampleAnnouncements() {
         // Sample announcement 1 (unread) - 2 hours ago
         announcements.add(new AnnouncementModal(
@@ -162,7 +221,7 @@ public class AnnouncementsActivity extends AppCompatActivity implements Announce
                 "Volunteer Event Signup",
                 "Sign up to volunteer at the community clean-up this Saturday! More details attached.",
                 "Events Coordinator",
-                System.currentTimeMillis() - 86400000, // 1 day ago (Yesterday)
+                System.currentTimeMillis() - 86400000, // 1 day ago
                 true // read
         ));
 
@@ -179,13 +238,13 @@ public class AnnouncementsActivity extends AppCompatActivity implements Announce
 
     @Override
     public void onAnnouncementClick(AnnouncementModal announcement) {
-        // Mark as read
+        // Mark as read in memory
         announcement.setRead(true);
 
-        // Refresh the list to update UI (removes bold, changes appearance)
+        // Refresh the list to update UI
         adapter.submitList(new ArrayList<>(announcements));
 
-        // Navigate to AnnouncementDetailActivity to show full content
+        // Navigate to detail screen
         Intent intent = new Intent(this, AnnouncementDetailActivity.class);
         intent.putExtra("announcement_id", announcement.getId());
         intent.putExtra("announcement_title", announcement.getTitle());

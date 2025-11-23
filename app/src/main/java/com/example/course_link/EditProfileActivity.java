@@ -1,5 +1,6 @@
 package com.example.course_link;
 
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.widget.ArrayAdapter;
@@ -14,14 +15,6 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 
-import com.google.firebase.auth.FirebaseAuth;
-import com.google.firebase.auth.FirebaseUser;
-import com.google.firebase.database.DatabaseReference;
-import com.google.firebase.database.FirebaseDatabase;
-
-import java.util.HashMap;
-import java.util.Map;
-
 public class EditProfileActivity extends AppCompatActivity {
 
     private EditText etDisplayName;
@@ -29,11 +22,6 @@ public class EditProfileActivity extends AppCompatActivity {
     private Spinner spinnerCampus;
     private Button btnCancel;
     private Button btnSave;
-
-    // Firebase
-    private FirebaseAuth mAuth;
-    private DatabaseReference usersRef;
-    private String userId;
 
     // Campus options
     private final String[] campusOptions = {
@@ -52,25 +40,14 @@ public class EditProfileActivity extends AppCompatActivity {
         setContentView(R.layout.edit_profile);
 
         // Handle system bars padding
-        ViewCompat.setOnApplyWindowInsetsListener
-                (findViewById(R.id.main), (v, insets) -> {
-            Insets sys = insets.getInsets(WindowInsetsCompat.Type.systemBars());
-            v.setPadding(sys.left, sys.top, sys.right, sys.bottom);
-            return insets;
-        });
-
-        // Initialize Firebase
-        mAuth = FirebaseAuth.getInstance();
-        FirebaseUser currentUser = mAuth.getCurrentUser();
-
-        if (currentUser != null) {
-            userId = currentUser.getUid();
-            usersRef = FirebaseDatabase.getInstance().getReference("users").child(userId);
-        } else {
-            Toast.makeText(this, "Please log in first", Toast.LENGTH_SHORT).show();
-            finish();
-            return;
-        }
+        ViewCompat.setOnApplyWindowInsetsListener(
+                findViewById(R.id.main),
+                (v, insets) -> {
+                    Insets sys = insets.getInsets(WindowInsetsCompat.Type.systemBars());
+                    v.setPadding(sys.left, sys.top, sys.right, sys.bottom);
+                    return insets;
+                }
+        );
 
         // Initialize views
         etDisplayName = findViewById(R.id.etDisplayName);
@@ -88,7 +65,7 @@ public class EditProfileActivity extends AppCompatActivity {
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerCampus.setAdapter(adapter);
 
-        // Load current profile data
+        // Load current profile data from Intent
         loadCurrentData();
 
         // Set up listeners
@@ -96,7 +73,7 @@ public class EditProfileActivity extends AppCompatActivity {
     }
 
     private void loadCurrentData() {
-        // Get data passed from ProfileActivity
+        // Get data passed from Profile Activity
         String displayName = getIntent().getStringExtra("displayName");
         String bio = getIntent().getStringExtra("bio");
         String campus = getIntent().getStringExtra("campus");
@@ -141,28 +118,30 @@ public class EditProfileActivity extends AppCompatActivity {
             return;
         }
 
+        // Get currently logged-in username from SharedPreferences
+        SharedPreferences prefs = getSharedPreferences("user_prefs", MODE_PRIVATE);
+        String username = prefs.getString("logged_in_username", null);
+
+        if (username == null) {
+            Toast.makeText(this, "You must be logged in to update profile", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
         // Disable button during save
         btnSave.setEnabled(false);
         btnSave.setText("Saving...");
 
-        // Create profile data map
-        Map<String, Object> profileData = new HashMap<>();
-        profileData.put("displayName", displayName);
-        profileData.put("bio", bio);
-        profileData.put("campus", campus);
-        profileData.put("updatedAt", System.currentTimeMillis());
+        // Save profile fields into SharedPreferences (per-user keys)
+        SharedPreferences.Editor editor = prefs.edit();
+        editor.putString("displayName_" + username, displayName);
+        editor.putString("bio_" + username, bio);
+        editor.putString("campus_" + username, campus);
+        editor.apply();
 
-        // Save to Firebase
-        usersRef.updateChildren(profileData)
-                .addOnSuccessListener(aVoid -> {
-                    Toast.makeText(this, "Profile updated successfully!", Toast.LENGTH_SHORT).show();
-                    setResult(RESULT_OK); // Notify ProfileActivity to reload
-                    finish();
-                })
-                .addOnFailureListener(e -> {
-                    Toast.makeText(this, "Failed to update profile: " + e.getMessage(), Toast.LENGTH_SHORT).show();
-                    btnSave.setEnabled(true);
-                    btnSave.setText("Save");
-                });
+        Toast.makeText(this, "Profile updated successfully!", Toast.LENGTH_SHORT).show();
+
+        // Let profile Activity know it should reload
+        setResult(RESULT_OK);
+        finish();
     }
 }

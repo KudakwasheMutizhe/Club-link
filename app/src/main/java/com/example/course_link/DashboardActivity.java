@@ -9,7 +9,6 @@ import android.os.Bundle;
 import android.text.TextUtils;
 import android.util.Log;
 import android.view.inputmethod.EditorInfo;
-import android.widget.Button;          // ✅ NEW
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.TextView;
@@ -27,6 +26,7 @@ import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
@@ -38,8 +38,8 @@ import java.util.HashSet;
 import java.util.UUID;
 
 /**
- * DashboardActivity - Real-time Firebase chat with push notifications
- * Now supports multiple chats
+ * DashboardActivity - Real-time Firebase chat with push notifications.
+ * This is used as the Messages screen and includes bottom navigation.
  */
 public class DashboardActivity extends AppCompatActivity implements MessageAdapter.MyIdProvider {
 
@@ -89,25 +89,23 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_messages);   // ✅ uses your messages layout
 
-        // Handle system bars padding
+        // Handle system bars padding for root @+id/main
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets sys = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             v.setPadding(sys.left, sys.top, sys.right, sys.bottom);
             return insets;
         });
 
-        // Get chat info from intent
+        // ---------- Get chat info from intent ----------
         Intent intent = getIntent();
         currentChatId = intent.getStringExtra("CHAT_ID");
         currentChatName = intent.getStringExtra("CHAT_NAME");
 
-        if (currentChatId == null || currentChatName == null) {
-            Toast.makeText(this, "Error: No chat selected", Toast.LENGTH_SHORT).show();
-            finish();
-            return;
-        }
+        // Provide safe defaults if nothing was passed
+        if (currentChatId == null) currentChatId = "GLOBAL_CHAT";
+        if (currentChatName == null) currentChatName = "Messages";
 
-        // User identity
+        // ---------- User identity (per device) ----------
         SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
         myId = prefs.getString(KEY_MY_ID, null);
         myName = prefs.getString(KEY_MY_NAME, null);
@@ -125,11 +123,11 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
         Log.d(TAG, "myId = " + myId + ", myName = " + myName);
         Log.d(TAG, "chatId = " + currentChatId + ", chatName = " + currentChatName);
 
-        // Initialize Firebase
+        // ---------- Firebase ----------
         FirebaseDatabase database = FirebaseDatabase.getInstance();
         messagesRef = database.getReference("messages_v2");
 
-        // Hook views
+        // ---------- Hook views ----------
         recyclerView = findViewById(R.id.rvMessages);
         etMessage = findViewById(R.id.message);
         btnSend = findViewById(R.id.btnSend);
@@ -139,10 +137,10 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
         // Set chat name in header
         tvChatName.setText(currentChatName);
 
-        // Back button
+        // Back button: go back to previous screen
         btnBack.setOnClickListener(v -> finish());
 
-        // Set up RecyclerView
+        // ---------- RecyclerView setup ----------
         adapter = new MessageAdapter(this);
         LinearLayoutManager layoutManager = new LinearLayoutManager(this);
         recyclerView.setLayoutManager(layoutManager);
@@ -151,7 +149,7 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
         // Send message on button tap
         btnSend.setOnClickListener(v -> sendMessage());
 
-        // Send on keyboard 'Send' action
+        // Send on keyboard 'Send' IME action
         etMessage.setOnEditorActionListener((tv, actionId, event) -> {
             if (actionId == EditorInfo.IME_ACTION_SEND) {
                 sendMessage();
@@ -163,10 +161,11 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
         // Listen for messages in this chat only
         setupFirebaseListener();
 
-        // Request notification permission
+        // Ask for notification permission when needed
         requestNotificationPermission();
     }
 
+    // ---------- Notification permission ----------
     private void requestNotificationPermission() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             if (ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS)
@@ -181,10 +180,12 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
     }
 
     private void setupNotifications() {
+        // Assuming you already have NotificationHelper implemented
         NotificationHelper.initNotificationChannel(this);
         NotificationHelper.subscribeToAnnouncements();
     }
 
+    // ---------- Firebase listener ----------
     private void setupFirebaseListener() {
         messagesListener = new ChildEventListener() {
             @Override
@@ -224,12 +225,13 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
             }
         };
 
-        // Load messages for this chat only
+        // Listen only to messages from this chat
         messagesRef.orderByChild("chatId")
                 .equalTo(currentChatId)
                 .addChildEventListener(messagesListener);
     }
 
+    // ---------- Send message ----------
     private void sendMessage() {
         String text = etMessage.getText().toString().trim();
         if (TextUtils.isEmpty(text)) {
@@ -261,41 +263,6 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
                     Toast.makeText(DashboardActivity.this, "Failed to send message", Toast.LENGTH_SHORT).show();
                     Log.e(TAG, "sendMessage failed", e);
                 });
-    }
-
-    /**
-     * ✅ Bottom navigation: Messages / Announcements / Profile
-     * Requires:
-     *  - Button IDs: btnNavMessages, btnNavAnnouncements, btnNavProfile in activity_messages.xml
-     *  - Activities: AnnouncementsActivity, ProfileActivity
-     */
-    private void setupBottomNav() {
-        Button btnNavMessages = findViewById(R.id.btnMessages);
-        Button btnNavAnnouncements = findViewById(R.id.btnAnnouncements);
-        Button btnNavProfile = findViewById(R.id.btnProfile);
-
-        // Messages tab – we are already on Messages, so do nothing
-        btnNavMessages.setOnClickListener(v -> {
-            // Optional: scroll to bottom of chat if you want
-            if (!messages.isEmpty()) {
-                recyclerView.scrollToPosition(messages.size() - 1);
-            }
-        });
-
-        // Announcements tab
-        btnNavAnnouncements.setOnClickListener(v -> {
-            Intent i = new Intent(DashboardActivity.this, AnnouncementsActivity.class);
-            // If you want to pass user or chat info, add extras here
-            // i.putExtra("MY_ID", myId);
-            startActivity(i);
-        });
-
-        // Profile tab
-        btnNavProfile.setOnClickListener(v -> {
-            Intent i = new Intent(DashboardActivity.this, profile.class);
-            // i.putExtra("MY_ID", myId);
-            startActivity(i);
-        });
     }
 
     @Override

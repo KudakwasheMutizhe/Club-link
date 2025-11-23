@@ -24,6 +24,26 @@
             android:name=".DetailActivity"
             android:exported="false" />
         <activity
+            android:name=".profile"
+            android:exported="false" />
+
+        <activity
+            android:name=".EventsActivity"
+            android:exported="false" />
+        <activity android:name=".AnnouncementDetailActivity"
+            android:exported="false" />
+        <activity android:name=".AddAnnouncementActivity"
+            android:exported="false" />
+        <activity
+            android:name=".AnnouncementsActivity"
+            android:exported="false" />
+        <activity
+            android:name=".DashboardActivity"
+            android:exported="false" />
+        <activity
+            android:name=".ChatListActivity"
+            android:exported="false" />
+        <activity
             android:name=".MainActivity"
             android:exported="true">
 

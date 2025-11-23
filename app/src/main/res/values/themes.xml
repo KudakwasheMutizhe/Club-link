@@ -6,4 +6,10 @@
     </style>
 
     <style name="Theme.Course_link" parent="Base.Theme.Course_link" />
+  <!-- Base application theme. -->
+    <style name="Base.Theme.Clublink" parent="Theme.Material3.DayNight.NoActionBar">
+        <!-- Customize your light theme here. -->
+        <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+    </style>
+
 </resources>

@@ -5,6 +5,7 @@ import android.os.Bundle;
 import android.view.View;
 import android.widget.*;
 import android.content.Intent;
+import android.content.SharedPreferences;
 
 public class SignupActivity extends AppCompatActivity {
 
@@ -43,7 +44,15 @@ public class SignupActivity extends AppCompatActivity {
                 User newUser = new User(fullname, email, username, password);
 
                 if (db.insertUser(newUser)) {
+                    // Save logged-in username in SharedPreferences (optional, in case you auto-login)
+                    SharedPreferences prefs = getSharedPreferences("user_prefs", MODE_PRIVATE);
+                    prefs.edit()
+                            .putString("logged_in_username", username)
+                            .apply();
+
                     Toast.makeText(SignupActivity.this, "Account created successfully!", Toast.LENGTH_SHORT).show();
+
+                    // Go to login (you can change to MainActivity or LottieActivity if you want)
                     startActivity(new Intent(SignupActivity.this, LoginActivity.class));
                     finish();
                 } else {
@@ -51,7 +60,6 @@ public class SignupActivity extends AppCompatActivity {
                 }
             }
         });
-
 
         // If user already has an account
         tvLogin.setOnClickListener(new View.OnClickListener() {
@@ -63,4 +71,3 @@ public class SignupActivity extends AppCompatActivity {
         });
     }
 }
-

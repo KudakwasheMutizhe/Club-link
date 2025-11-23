@@ -63,5 +63,50 @@ public class UserDbHelper extends SQLiteOpenHelper {
         db.close();
         return exists;
     }
-}
 
+    // Get a user by username
+    public User getUserByUsername(String username) {
+        SQLiteDatabase db = this.getReadableDatabase();
+
+        Cursor cursor = db.query(
+                TABLE_USERS,
+                new String[]{COL_FULLNAME, COL_EMAIL, COL_USERNAME, COL_PASSWORD},
+                COL_USERNAME + " = ?",
+                new String[]{username},
+                null, null, null
+        );
+
+        User user = null;
+        if (cursor != null && cursor.moveToFirst()) {
+            String fullname = cursor.getString(cursor.getColumnIndexOrThrow(COL_FULLNAME));
+            String email = cursor.getString(cursor.getColumnIndexOrThrow(COL_EMAIL));
+            String uname = cursor.getString(cursor.getColumnIndexOrThrow(COL_USERNAME));
+            String pwd = cursor.getString(cursor.getColumnIndexOrThrow(COL_PASSWORD));
+
+            user = new User(fullname, email, uname, pwd);
+        }
+
+        if (cursor != null) cursor.close();
+        db.close();
+        return user;
+    }
+
+    // Update password for a given username
+    public boolean updatePassword(String username, String newPassword) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        ContentValues cv = new ContentValues();
+        cv.put(COL_PASSWORD, newPassword);
+
+        int rows = db.update(TABLE_USERS, cv, COL_USERNAME + " = ?", new String[]{username});
+        db.close();
+        return rows > 0;
+    }
+
+    // Delete user by username
+    public boolean deleteUser(String username) {
+        SQLiteDatabase db = this.getWritableDatabase();
+        int rows = db.delete(TABLE_USERS, COL_USERNAME + " = ?", new String[]{username});
+        db.close();
+        return rows > 0;
+    }
+}

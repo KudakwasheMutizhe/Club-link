@@ -1,9 +1,5 @@
 <resources>
     <string name="app_name">Course_link</string>
-    <style name="ShapeAppearanceOverlay_Events_Rounded20">
-        <item name="cornerFamily">rounded</item>
-        <item name="cornerSize">20dp</item>
-    </style>
     <string-array name="club_categories">
         <item>Academic</item>
         <item>Sports</item>
@@ -12,4 +8,10 @@
         <item>Arts &amp; Music</item>
         <item>Technology</item>
     </string-array>
+
+
+    <string name="title_activity_main2">MainActivity2</string>
+    <string name="title_home">Home</string>
+    <string name="title_dashboard">Dashboard</string>
+    <string name="title_notifications">Notifications</string>
 </resources>

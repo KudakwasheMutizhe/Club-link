@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+<<<<<<< HEAD
 
     <!-- ✅ Rounded chip style used in MainActivity -->
     <style name="RoundedChipStyle" parent="Widget.MaterialComponents.Chip.Choice">
@@ -13,3 +14,12 @@
 
 
 </resources>
+=======
+    <style name="Theme.Clublink" parent="Base.Theme.Clublink" />
+    <style name="ShapeAppearanceOverlay_Events_Rounded20">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">20dp</item>
+    </style>
+</resources>
+    
+>>>>>>> d43c16b (jessica added the bottom nav for all the activities  and updated the login and signup activities to show info in the profile)

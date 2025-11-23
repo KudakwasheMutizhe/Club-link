@@ -36,24 +36,31 @@ android {
 }
 
 dependencies {
-
+    // Keep your existing non-Firebase dependencies
     implementation(libs.appcompat)
     implementation(libs.material)
     implementation(libs.activity)
     implementation(libs.constraintlayout)
     implementation(libs.recyclerview)
     implementation(libs.cardview)
-    implementation(libs.firebase.database)
-    implementation ("com.google.firebase:firebase-bom:33.4.0")
-    implementation ("com.google.firebase:firebase-database")
-    implementation ("com.google.firebase:firebase-storage")
-    implementation ("com.github.bumptech.glide:glide:4.16.0")
-    implementation(libs.firebase.auth)
-    implementation(libs.firebase.messaging)
-    annotationProcessor ("com.github.bumptech.glide:compiler:4.16.0")
-    implementation("com.google.firebase:firebase-storage:21.0.1")
+
+    // Import the Firebase BoM
+    // This will manage the versions of all Firebase libraries
+    implementation(platform("com.google.firebase:firebase-bom:33.4.0"))
+
+    // Add Firebase dependencies without specifying their versions
+    implementation("com.google.firebase:firebase-auth")
+    implementation("com.google.firebase:firebase-database")
+    implementation("com.google.firebase:firebase-messaging")
+    implementation("com.google.firebase:firebase-storage")
+
+    // Other libraries
+    implementation("com.github.bumptech.glide:glide:4.16.0")
+    annotationProcessor("com.github.bumptech.glide:compiler:4.16.0")
     implementation("com.airbnb.android:lottie:5.0.3")
     implementation("de.hdodenhof:circleimageview:3.1.0")
+
+    // Test implementations
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)

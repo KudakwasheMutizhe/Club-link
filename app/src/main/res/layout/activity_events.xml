@@ -1,95 +1,89 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     tools:context=".EventsActivity">
 
-
     <com.google.android.material.appbar.AppBarLayout
+        android:id="@+id/appBarLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:theme="@style/ThemeOverlay.Material3.Dark.ActionBar">
-
+        android:theme="@style/ThemeOverlay.Material3.Dark.ActionBar"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
 
         <com.google.android.material.appbar.MaterialToolbar
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            app:title="Avents"/>
-
+            app:title="Events" />
 
     </com.google.android.material.appbar.AppBarLayout>
 
-
-    <LinearLayout
-        android:id="@+id/contentContainer"
+    <!-- Inline month calendar -->
+    <com.google.android.material.card.MaterialCardView
+        android:id="@+id/calendarCard"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:orientation="vertical"
-        app:layout_behavior="@string/appbar_scrolling_view_behavior">
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        app:cardCornerRadius="20dp"
+        app:cardUseCompatPadding="true"
+        app:layout_constraintTop_toBottomOf="@id/appBarLayout"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
 
-
-        <!-- Inline month calendar -->
-        <com.google.android.material.card.MaterialCardView
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_margin="16dp"
-            app:cardCornerRadius="20dp"
-            app:cardUseCompatPadding="true">
+            android:orientation="vertical"
+            android:padding="8dp">
 
-
-            <LinearLayout
+            <CalendarView
+                android:id="@+id/calendarView"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="vertical"
-    android:padding="8dp">
+                android:weekDayTextAppearance="@style/TextAppearance.Material3.LabelSmall"
+                android:dateTextAppearance="@style/TextAppearance.Material3.BodyMedium"
+                android:firstDayOfWeek="1" />
 
-
-<CalendarView
-    android:id="@+id/calendarView"
-    android:layout_width="match_parent"
-    android:layout_height="wrap_content"
-    android:weekDayTextAppearance="@style/TextAppearance.Material3.LabelSmall"
-    android:dateTextAppearance="@style/TextAppearance.Material3.BodyMedium"
-    android:firstDayOfWeek="1"/>
-    </LinearLayout>
+        </LinearLayout>
     </com.google.android.material.card.MaterialCardView>
-
-
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/recyclerEvents"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="1"
         android:clipToPadding="false"
         android:paddingLeft="16dp"
         android:paddingRight="16dp"
         android:paddingBottom="12dp"
-        tools:listitem="@layout/item_event"/>
-
+        app:layout_constraintTop_toBottomOf="@id/calendarCard"
+        app:layout_constraintBottom_toTopOf="@id/bottomNav"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        tools:listitem="@layout/item_event" />
 
     <!-- Bottom navigation -->
     <com.google.android.material.bottomnavigation.BottomNavigationView
         android:id="@+id/bottomNav"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        app:menu="@menu/menu_bottom_nav"/>
+        android:background="@color/white"
+        app:menu="@menu/bottom_nav_menu"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent" />
 
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabAdd"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        app:srcCompat="@drawable/ic_add_24"
+        app:layout_constraintBottom_toTopOf="@id/bottomNav"
+        app:layout_constraintEnd_toEndOf="parent" />
 
-    </LinearLayout>
-
-
-<com.google.android.material.floatingactionbutton.FloatingActionButton
-android:id="@+id/fabAdd"
-android:layout_width="wrap_content"
-android:layout_height="wrap_content"
-android:layout_margin="16dp"
-app:layout_anchorGravity="bottom|end"
-app:layout_anchor="@id/contentContainer"
-app:srcCompat="@drawable/ic_add_24"/>
-
-
-    </androidx.coordinatorlayout.widget.CoordinatorLayout>
+</androidx.constraintlayout.widget.ConstraintLayout>

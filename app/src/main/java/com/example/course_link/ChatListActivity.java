@@ -12,6 +12,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
@@ -40,7 +41,6 @@ public class ChatListActivity extends AppCompatActivity {
 
     private DatabaseReference chatsRef;
     private DatabaseReference messagesRef;
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -51,18 +51,53 @@ public class ChatListActivity extends AppCompatActivity {
         recyclerView = findViewById(R.id.rvChatList);
         ImageButton btnNewChat = findViewById(R.id.btnNewChat);
 
-        if (btnNewChat == null) {
-            Log.e(TAG, "btnNewChat is NULL! Check your layout file and id.");
-            Toast.makeText(this, "btnNewChat is NULL", Toast.LENGTH_LONG).show();
-        } else {
-            Log.d(TAG, "btnNewChat found successfully");
+        // ---------- Bottom Navigation ----------
+        BottomNavigationView bottomNavigationView = findViewById(R.id.bottomNavigationView);
+        if (bottomNavigationView != null) {
+            final boolean[] isInitialSelection = {true};
+
+            bottomNavigationView.setOnItemSelectedListener(item -> {
+                if (isInitialSelection[0]) {
+                    isInitialSelection[0] = false;
+                    return true;
+                }
+
+                int itemId = item.getItemId();
+
+                if (itemId == R.id.nav_home) {
+                    startActivity(new Intent(ChatListActivity.this, MainActivity.class));
+                    finish();
+                    return true;
+                } else if (itemId == R.id.nav_events) {
+                    startActivity(new Intent(ChatListActivity.this, EventsActivity.class));
+                    finish();
+                    return true;
+                } else if (itemId == R.id.nav_messages) {
+                    return true;
+                } else if (itemId == R.id.nav_announcements) {
+                    startActivity(new Intent(ChatListActivity.this, AnnouncementsActivity.class));
+                    finish();
+                    return true;
+                } else if (itemId == R.id.nav_profile) {
+                    startActivity(new Intent(ChatListActivity.this, profile.class));
+                    finish();
+                    return true;
+                }
+
+                return false;
+            });
+
+            bottomNavigationView.setSelectedItemId(R.id.nav_messages);
         }
 
+        // ✅ Set up adapter with click listener (ONLY ONCE)
         adapter = new ChatListAdapter(chatPreview -> {
-            Intent intent = new Intent(ChatListActivity.this, MainActivity.class);
+            // ✅ FIXED: Open DashboardActivity instead of MainActivity
+            Intent intent = new Intent(ChatListActivity.this, DashboardActivity.class);
             intent.putExtra("CHAT_ID", chatPreview.getChatId());
             intent.putExtra("CHAT_NAME", chatPreview.getChatName());
             startActivity(intent);
+            // ✅ DON'T call finish() here - stay on chat list
         });
 
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
@@ -72,48 +107,22 @@ public class ChatListActivity extends AppCompatActivity {
         chatsRef = database.getReference("chats");
         messagesRef = database.getReference("messages_v2");
 
-        loadChats();
-
-        if (btnNewChat != null) {
-            btnNewChat.setOnClickListener(v -> {
-                Log.d(TAG, "New Chat button clicked!");
-                Toast.makeText(ChatListActivity.this, "Button clicked!", Toast.LENGTH_SHORT).show();
-                showCreateChatDialog();
-            });
-            Log.d(TAG, "Click listener set on btnNewChat");
-        } else {
-            Log.e(TAG, "Click listener NOT set because btnNewChat is null");
-        }
-
-
-        // Set up adapter with click listener
-        adapter = new ChatListAdapter(chatPreview -> {
-            // Open the chat when clicked
-            Intent intent = new Intent(ChatListActivity.this, MainActivity.class);
-            intent.putExtra("CHAT_ID", chatPreview.getChatId());
-            intent.putExtra("CHAT_NAME", chatPreview.getChatName());
-            startActivity(intent);
-        });
-
-        recyclerView.setLayoutManager(new LinearLayoutManager(this));
-        recyclerView.setAdapter(adapter);
-
         // Listen for chats
         loadChats();
 
         // Create new chat button
-
-        if (btnNewChat == null) {
-            Log.e(TAG, "btnNewChat is NULL after using ImageButton!");
-        } else {
-            Log.d(TAG, "btnNewChat (ImageButton) found successfully");
+        if (btnNewChat != null) {
             btnNewChat.setOnClickListener(v -> {
                 Log.d(TAG, "New Chat button clicked!");
-                Toast.makeText(ChatListActivity.this, "Button clicked!", Toast.LENGTH_SHORT).show();
                 showCreateChatDialog();
             });
+        } else {
+            Log.e(TAG, "btnNewChat is NULL! Check your layout file.");
         }
     }
+
+// === END: CORRECTED NAVIGATION BLOCK ===
+
         public void onNewChatClick(android.view.View view) {
         Log.d(TAG, "XML onClick fired!");
         Toast.makeText(ChatListActivity.this, "XML onClick fired", Toast.LENGTH_SHORT).show();
@@ -299,10 +308,13 @@ public class ChatListActivity extends AppCompatActivity {
                 .addOnSuccessListener(aVoid -> {
                     Log.d(TAG, "Chat created successfully, id: " + chatId);
                     Toast.makeText(this, "Chat created!", Toast.LENGTH_SHORT).show();
-                    Intent intent = new Intent(ChatListActivity.this, MainActivity.class);
+
+                    // ✅ FIXED: Open DashboardActivity instead of MainActivity
+                    Intent intent = new Intent(ChatListActivity.this, DashboardActivity.class);
                     intent.putExtra("CHAT_ID", chatId);
                     intent.putExtra("CHAT_NAME", chatName);
                     startActivity(intent);
+                    // ✅ DON'T call finish() - stay on chat list so user can go back
                 })
                 .addOnFailureListener(e -> {
                     Toast.makeText(this, "Failed to create chat", Toast.LENGTH_SHORT).show();
