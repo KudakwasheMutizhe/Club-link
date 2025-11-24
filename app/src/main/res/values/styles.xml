@@ -1,5 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 
     <!-- ✅ Rounded chip style used in MainActivity -->
     <style name="RoundedChipStyle" parent="Widget.MaterialComponents.Chip.Choice">
@@ -11,11 +15,18 @@
         <item name="android:textSize">14sp</item>
     </style>
 
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
     <style name="Theme.Clublink" parent="Base.Theme.Clublink" />
     <style name="ShapeAppearanceOverlay_Events_Rounded20">
         <item name="cornerFamily">rounded</item>
         <item name="cornerSize">20dp</item>
     </style>
 </resources>
+<<<<<<< Updated upstream
     
 
+=======
+>>>>>>> Stashed changes

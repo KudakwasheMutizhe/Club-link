@@ -21,16 +21,26 @@ import android.content.res.ColorStateList;
 import androidx.core.content.ContextCompat;
 import android.view.ContextThemeWrapper;
 
+<<<<<<< Updated upstream
+=======
+
+>>>>>>> Stashed changes
 import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 
 
 
-import android.view.ContextThemeWrapper;     // ✅ import for rounded chip style
+import android.view.ContextThemeWrapper;     //  import for rounded chip style
 
 import com.google.android.material.chip.Chip;
 import com.google.android.material.chip.ChipGroup;
+<<<<<<< Updated upstream
+=======
+
+import com.google.android.material.bottomnavigation.BottomNavigationView;
+
+>>>>>>> Stashed changes
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -71,7 +81,60 @@ public class MainActivity extends AppCompatActivity {
             return insets;
         });
 
+<<<<<<< Updated upstream
         // Firebase init
+=======
+
+        // Bottom Navigation setup
+        BottomNavigationView bottomNavigationView = findViewById(R.id.bottomNavigationView);
+
+// This flag prevents the listener from re-navigating when the screen first loads.
+        final boolean[] isInitialSelection = {true};
+
+// 1. Set the listener FIRST
+        bottomNavigationView.setOnItemSelectedListener(item -> {
+            // If this is the first selection event (on screen load), ignore it.
+            if (isInitialSelection[0]) {
+                isInitialSelection[0] = false; // Mark as handled
+                return true; // Consume the event, but do nothing.
+            }
+
+            int itemId = item.getItemId();
+
+            if (itemId == R.id.nav_home) {
+                // Already on the home screen, do nothing.
+                return true;
+            } else if (itemId == R.id.nav_events) {
+                startActivity(new Intent(MainActivity.this, EventsActivity.class));
+                finish();
+                return true;
+            } else if (itemId == R.id.nav_messages) {
+                Intent intent = new Intent(MainActivity.this, ChatListActivity.class);
+                startActivity(intent);
+                finish();
+                return true;
+            } else if (itemId == R.id.nav_announcements) {
+                startActivity(new Intent(MainActivity.this, AnnouncementsActivity.class));
+                finish();
+                return true;
+            } else if (itemId == R.id.nav_profile) {
+                startActivity(new Intent(MainActivity.this, profile.class));
+                finish();
+                return true;
+            }
+
+            return false;
+        });
+
+// Set the selected item SECOND. This will trigger the listener one time.
+        bottomNavigationView.setSelectedItemId(R.id.nav_home);
+
+        // --- END: REPLACEMENT CODE BLOCK ---
+
+
+        // Initialize Firebase Database instance and reference to "CourseInfo" node
+
+>>>>>>> Stashed changes
         firebaseDatabase = FirebaseDatabase.getInstance();
         databaseReference = firebaseDatabase.getReference("ClubInfo");
 
