@@ -10,7 +10,7 @@
         <item name="android:textColor">@android:color/black</item>
         <item name="android:textSize">14sp</item>
     </style>
-    
+
     <style name="Theme.Clublink" parent="Base.Theme.Clublink" />
     <style name="ShapeAppearanceOverlay_Events_Rounded20">
         <item name="cornerFamily">rounded</item>
