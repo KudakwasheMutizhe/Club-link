@@ -41,7 +41,7 @@
         android:backgroundTint="@color/white"
         app:cardCornerRadius="25dp"
         app:cardElevation="15dp"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toTopOf="@+id/bottomNav"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/textView3">
@@ -53,7 +53,7 @@
             <ImageView
                 android:id="@+id/imagedclubs"
                 android:layout_width="match_parent"
-                android:layout_height="300dp"
+                android:layout_height="240dp"
                 android:scaleType="fitXY"
                 app:layout_constraintEnd_toEndOf="parent"
                 app:layout_constraintHorizontal_bias="0.0"
@@ -65,7 +65,7 @@
                 android:id="@+id/clubNameD"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_marginTop="24dp"
+                android:layout_marginTop="16dp"
                 android:fontFamily="@font/roboto_flex"
                 android:text="Art Club"
                 android:textColor="@color/black"
@@ -95,7 +95,7 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginHorizontal="20dp"
-                android:layout_marginTop="24dp"
+                android:layout_marginTop="16dp"
                 android:paddingStart="10sp"
                 android:text="This club is a welcoming space for creatives who want to express themselves through art. \n\nWhether you’re a painter, writer, designer, or simply someone who loves to create, this is a placon with others. \n\nOur goal is to inspire, collaborate, and grow together as artists, while celebrating all forms of creative expression."
                 android:textColor="@color/black"
@@ -142,6 +142,22 @@
         app:layout_constraintHorizontal_bias="0.313"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
+
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottomNav"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:background="#FFFFFF"
+        app:itemIconSize="26dp"
+        app:itemIconTint="@color/black"
+        app:itemRippleColor="#1C4E80"
+        app:labelVisibilityMode="unlabeled"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:menu="@menu/menu_bottom_nav" />
+
+
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>

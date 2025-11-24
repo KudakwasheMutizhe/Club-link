@@ -3,6 +3,8 @@
     <style name="Base.Theme.Course_link" parent="Theme.Material3.DayNight.NoActionBar">
         <!-- Customize your light theme here. -->
         <!-- <item name="colorPrimary">@color/my_light_primary</item> -->
+        <item name="colorSecondaryContainer">#A5C9FF</item>
+
     </style>
 
     <style name="Theme.Course_link" parent="Base.Theme.Course_link" />

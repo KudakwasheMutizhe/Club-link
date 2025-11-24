@@ -50,7 +50,7 @@
         android:id="@+id/textView7"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
+        android:layout_marginTop="12dp"
         android:text="Add New Club"
         android:textSize="25sp"
         android:textStyle="bold"
@@ -63,7 +63,7 @@
         android:id="@+id/textView4"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
+        android:layout_marginTop="12dp"
         android:text="Club name"
         android:textSize="20sp"
         android:textStyle="bold"
@@ -76,7 +76,7 @@
         android:id="@+id/edtClubNameAdd"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
+        android:layout_marginTop="8dp"
         android:layout_marginRight="15dp"
         android:background="@drawable/edittext_selector"
         android:ems="10"
@@ -93,7 +93,7 @@
         android:id="@+id/tvCategoryLabel"
         android:layout_width="82dp"
         android:layout_height="31dp"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="12dp"
         android:text="Category"
         android:textSize="20sp"
         android:textStyle="bold"
@@ -172,7 +172,7 @@
         android:id="@+id/photoCard"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="8dp"
         android:backgroundTint="@color/white"
         app:layout_constraintStart_toStartOf="@+id/materialCardView2"
         app:layout_constraintTop_toBottomOf="@+id/materialCardView2">
@@ -265,7 +265,7 @@
         android:id="@+id/materialCardView2"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
+        android:layout_marginTop="8dp"
         android:backgroundTint="@color/white"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintHorizontal_bias="0.498"
@@ -303,7 +303,7 @@
         android:textColor="@color/black"
         android:textStyle="bold"
         app:cornerRadius="10dp"
-        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintBottom_toTopOf="@id/bottomNav"
         app:layout_constraintEnd_toEndOf="@+id/photoCard"
         app:layout_constraintHorizontal_bias="1.0"
         app:layout_constraintStart_toStartOf="parent"
@@ -350,6 +350,21 @@
         app:layout_constraintTop_toTopOf="@+id/textView3"
         app:layout_constraintVertical_bias="1.0"
         app:srcCompat="@drawable/message" />
+
+    <com.google.android.material.bottomnavigation.BottomNavigationView
+        android:id="@+id/bottomNav"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:background="#FFFFFF"
+        app:itemIconSize="26dp"
+        app:itemIconTint="@color/black"
+        app:itemRippleColor="#1C4E80"
+        app:labelVisibilityMode="unlabeled"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:menu="@menu/menu_bottom_nav" />
+
 
 
 </androidx.constraintlayout.widget.ConstraintLayout>
