@@ -13,6 +13,7 @@ import androidx.core.view.WindowInsetsCompat;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.button.MaterialButton;
 
 public class DetailActivity extends AppCompatActivity {
@@ -37,6 +38,49 @@ public class DetailActivity extends AppCompatActivity {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
+
+        // ---------- Bottom Navigation ----------
+        BottomNavigationView bottomNavigationView = findViewById(R.id.bottomNav);
+
+        final boolean[] isInitialSelection = {true};
+
+        bottomNavigationView.setOnItemSelectedListener(item -> {
+            if (isInitialSelection[0]) {
+                isInitialSelection[0] = false;
+                return true;
+            }
+
+            int itemId = item.getItemId();
+
+            if (itemId == R.id.nav_home) {
+                // From detail → go back to main clubs list
+                Intent intent = new Intent(DetailActivity.this, MainActivity.class);
+                startActivity(intent);
+                finish();
+                return true;
+            } else if (itemId == R.id.nav_events) {
+                startActivity(new Intent(DetailActivity.this, EventsActivity.class));
+                finish();
+                return true;
+            } else if (itemId == R.id.nav_messages) {
+                startActivity(new Intent(DetailActivity.this, ChatListActivity.class));
+                finish();
+                return true;
+            } else if (itemId == R.id.nav_announcements) {
+                startActivity(new Intent(DetailActivity.this, AnnouncementsActivity.class));
+                finish();
+                return true;
+            } else if (itemId == R.id.nav_profile) {
+                startActivity(new Intent(DetailActivity.this, profile.class));
+                finish();
+                return true;
+            }
+
+            return false;
+        });
+
+        // Highlight "home" tab since this is part of the clubs/home section
+        bottomNavigationView.setSelectedItemId(R.id.nav_home);
 
         // 1️⃣ Bind views
         imagedclubs       = findViewById(R.id.imagedclubs);

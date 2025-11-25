@@ -1,8 +1,13 @@
 package com.example.course_link;
 
 import android.content.Intent;
+import android.content.res.ColorStateList;
+import android.graphics.Color;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
+import android.view.ContextThemeWrapper;
 import android.widget.Toast;
 
 import androidx.activity.EdgeToEdge;
@@ -14,22 +19,9 @@ import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowInsetsCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-import android.content.res.ColorStateList;
-import androidx.core.content.ContextCompat;
-import android.graphics.Color;
-import android.content.res.ColorStateList;
-import androidx.core.content.ContextCompat;
-import android.view.ContextThemeWrapper;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.card.MaterialCardView;
-import com.google.android.material.floatingactionbutton.FloatingActionButton;
-
-
-
-
-import android.view.ContextThemeWrapper;     // ✅ import for rounded chip style
-
 import com.google.android.material.chip.Chip;
 import com.google.android.material.chip.ChipGroup;
 import com.google.firebase.database.DataSnapshot;
@@ -39,6 +31,8 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -58,7 +52,11 @@ public class MainActivity extends AppCompatActivity {
     // Firebase
     private FirebaseDatabase firebaseDatabase;
     private DatabaseReference databaseReference;
-    MaterialCardView mcvAddNewClub;
+    private MaterialCardView mcvAddNewClub;
+
+    // Threading helpers
+    private ExecutorService filterExecutor;
+    private Handler mainHandler;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -119,6 +117,9 @@ public class MainActivity extends AppCompatActivity {
         bottomNavigationView.setSelectedItemId(R.id.nav_home);
 
 
+        // Threading init
+        filterExecutor = Executors.newSingleThreadExecutor();
+        mainHandler = new Handler(Looper.getMainLooper());
 
         // Firebase init
         firebaseDatabase = FirebaseDatabase.getInstance();
@@ -152,7 +153,7 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public boolean onQueryTextChange(String newText) {
-                filterList(newText);
+                filterListInBackground(newText);
                 return true;
             }
         });
@@ -171,8 +172,8 @@ public class MainActivity extends AppCompatActivity {
 
         // Main blue color for the theme
         String BLUE = "#3B82F6";          // modern blue
-        String BLUE_DARK = "#1D4ED8";     // darker blue (for text if you want)
-        String TEXT_DARK = "#0F172A";     // near-black for fallback
+        String BLUE_DARK = "#1D4ED8";     // darker blue (for text)
+        // String TEXT_DARK = "#0F172A";  // (unused for now)
 
         // Background colors for checked / unchecked
         ColorStateList chipBgColors = new ColorStateList(
@@ -250,12 +251,9 @@ public class MainActivity extends AppCompatActivity {
             String currentQuery = searchView.getQuery() != null
                     ? searchView.getQuery().toString()
                     : "";
-            filterList(currentQuery);
+            filterListInBackground(currentQuery);
         });
     }
-
-
-
 
     /**
      * Fetch clubs from Firebase Realtime Database and update list.
@@ -291,52 +289,62 @@ public class MainActivity extends AppCompatActivity {
     }
 
     /**
-     * Filter list based on text query + active category filter.
+     * Filter list based on text query + active category filter on a background thread.
      */
-    private void filterList(String newText) {
+    private void filterListInBackground(String newText) {
         if (clubAdabter == null) return;
 
-        String query = (newText == null) ? "" : newText.trim().toLowerCase();
-        String categoryFilterLower = activeCategoryFilter == null
+        final String query = (newText == null) ? "" : newText.trim().toLowerCase();
+        final String categoryFilterLower = activeCategoryFilter == null
                 ? ""
                 : activeCategoryFilter.trim().toLowerCase();
 
-        // Nothing typed & no category filter → show all
-        if (query.isEmpty() && categoryFilterLower.isEmpty()) {
-            clubAdabter.setFilteredList(new ArrayList<>(fullClubList));
-            return;
-        }
+        filterExecutor.execute(() -> {
+            ArrayList<ClubModal> result = new ArrayList<>();
 
-        ArrayList<ClubModal> filteredList = new ArrayList<>();
+            // Nothing typed & no category filter → use all
+            if (query.isEmpty() && categoryFilterLower.isEmpty()) {
+                result.addAll(fullClubList);
+            } else {
+                for (ClubModal club : fullClubList) {
+                    if (club == null) continue;
 
-        for (ClubModal club : fullClubList) {
-            if (club == null) continue;
+                    String name = club.getClubName() != null
+                            ? club.getClubName().toLowerCase()
+                            : "";
+                    String desc = club.getShortDescription() != null
+                            ? club.getShortDescription().toLowerCase()
+                            : "";
+                    String category = club.getCategory() != null
+                            ? club.getCategory().toLowerCase()
+                            : "";
 
-            String name = club.getClubName() != null
-                    ? club.getClubName().toLowerCase()
-                    : "";
-            String desc = club.getShortDescription() != null
-                    ? club.getShortDescription().toLowerCase()
-                    : "";
-            String category = club.getCategory() != null
-                    ? club.getCategory().toLowerCase()
-                    : "";
+                    boolean matchesText =
+                            query.isEmpty()
+                                    || name.contains(query)
+                                    || desc.contains(query)
+                                    || category.contains(query);
 
-            boolean matchesText =
-                    query.isEmpty()
-                            || name.contains(query)
-                            || desc.contains(query)
-                            || category.contains(query);
+                    boolean matchesCategory =
+                            categoryFilterLower.isEmpty()
+                                    || category.equals(categoryFilterLower);
 
-            boolean matchesCategory =
-                    categoryFilterLower.isEmpty()
-                            || category.equals(categoryFilterLower);
-
-            if (matchesText && matchesCategory) {
-                filteredList.add(club);
+                    if (matchesText && matchesCategory) {
+                        result.add(club);
+                    }
+                }
             }
-        }
 
-        clubAdabter.setFilteredList(filteredList);
+            // Switch back to main thread to update adapter
+            mainHandler.post(() -> clubAdabter.setFilteredList(result));
+        });
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (filterExecutor != null && !filterExecutor.isShutdown()) {
+            filterExecutor.shutdown();
+        }
     }
 }

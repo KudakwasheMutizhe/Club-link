@@ -19,56 +19,59 @@ import java.util.ArrayList;
 
 public class ClubAdabter extends RecyclerView.Adapter<ClubAdabter.ViewHolder> {
 
-    Context context;
-    ArrayList<ClubModal> clubModalArrayList;
+    private final Context context;
+    private ArrayList<ClubModal> clubModalArrayList;
 
     private static final String TAG = "ClubAdabter";
 
     public ClubAdabter(Context context, ArrayList<ClubModal> clubModalArrayList) {
         this.context = context;
         this.clubModalArrayList = clubModalArrayList;
+        setHasStableIds(true); // optional if each club has a stable ID
     }
 
-    public void setFilteredList(ArrayList<ClubModal> filteredList){
+    public void setFilteredList(ArrayList<ClubModal> filteredList) {
         this.clubModalArrayList = filteredList;
-        notifyDataSetChanged();
+        notifyDataSetChanged(); // can be upgraded to DiffUtil later
+    }
+
+    @Override
+    public long getItemId(int position) {
+        // if clubId is unique & stable, use it (or hashCode)
+        return clubModalArrayList.get(position).getClubId().hashCode();
     }
 
     @NonNull
     @Override
-    public ClubAdabter.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        LayoutInflater inflater = LayoutInflater.from(context);
+    public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        LayoutInflater inflater = LayoutInflater.from(parent.getContext());
         View view = inflater.inflate(R.layout.all_clubs_rows, parent, false);
         return new ViewHolder(view);
     }
 
     @Override
-    public void onBindViewHolder(@NonNull ClubAdabter.ViewHolder holder, int position) {
+    public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         ClubModal model = clubModalArrayList.get(position);
 
         holder.txtClubName.setText(model.getClubName());
         holder.txtClubShortDescription.setText(model.getShortDescription());
 
-        // Optional: log to verify category + id
         Log.d(TAG, "Bind club: id=" + model.getClubId()
                 + " name=" + model.getClubName()
                 + " category=" + model.getCategory()
                 + " imagePath=" + model.getImagePath());
 
-        // 🔹 Load image from Firebase Storage URL using Glide
-        String imageUrl = model.getImagePath();   // this should now be the download URL
+        String imageUrl = model.getImagePath();
 
         if (imageUrl != null && !imageUrl.isEmpty()) {
-            Glide.with(context)
+            Glide.with(holder.itemView.getContext())
                     .load(imageUrl)
                     .centerCrop()
                     .diskCacheStrategy(DiskCacheStrategy.ALL)
-                    // replace these with your own drawables if you have them
                     .placeholder(R.drawable.image_1)
                     .error(R.drawable.image_2)
                     .into(holder.clubImage);
         } else {
-            // no image → show placeholder
             holder.clubImage.setImageResource(R.drawable.image_1);
         }
 
@@ -77,19 +80,19 @@ public class ClubAdabter extends RecyclerView.Adapter<ClubAdabter.ViewHolder> {
             if (selectPosition == RecyclerView.NO_POSITION) return;
 
             ClubModal clicked = clubModalArrayList.get(selectPosition);
-            Intent intent = new Intent(context, DetailActivity.class);
+            Intent intent = new Intent(view.getContext(), DetailActivity.class);
             intent.putExtra("clubName", clicked.getClubName());
             intent.putExtra("shortDescription", clicked.getShortDescription());
             intent.putExtra("imageUrl", clicked.getImagePath());
             intent.putExtra("clubId", clicked.getClubId());
-            intent.putExtra("category", clicked.getCategory());  // ⬅️ pass category too
-            context.startActivity(intent);
+            intent.putExtra("category", clicked.getCategory());
+            view.getContext().startActivity(intent);
         });
     }
 
     @Override
     public int getItemCount() {
-        return clubModalArrayList.size();
+        return clubModalArrayList != null ? clubModalArrayList.size() : 0;
     }
 
     public static class ViewHolder extends RecyclerView.ViewHolder {
@@ -101,7 +104,7 @@ public class ClubAdabter extends RecyclerView.Adapter<ClubAdabter.ViewHolder> {
             txtClubName = itemView.findViewById(R.id.txtNameClub);
             txtClubShortDescription = itemView.findViewById(R.id.txtShortDescription);
             clubImage = itemView.findViewById(R.id.imageClub);
-            // If you add a category TextView in the row layout, you can bind it here too.
         }
     }
 }
+

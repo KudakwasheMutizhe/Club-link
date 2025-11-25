@@ -4,6 +4,8 @@ import android.content.Intent;
 import android.graphics.Bitmap;
 import android.net.Uri;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.provider.MediaStore;
 import android.widget.ArrayAdapter;
 import android.widget.AutoCompleteTextView;
@@ -14,7 +16,6 @@ import android.widget.Toast;
 import androidx.activity.EdgeToEdge;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
-import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
 import androidx.core.graphics.Insets;
@@ -23,15 +24,17 @@ import androidx.core.view.WindowInsetsCompat;
 
 import com.bumptech.glide.Glide;
 import com.bumptech.glide.load.engine.DiskCacheStrategy;
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
-import com.google.android.gms.tasks.OnFailureListener;
-import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.storage.FirebaseStorage;
 import com.google.firebase.storage.StorageReference;
+
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class EditClubInfo extends AppCompatActivity {
 
@@ -56,6 +59,10 @@ public class EditClubInfo extends AppCompatActivity {
     private ActivityResultLauncher<Void> takePictureLauncher;
     private ActivityResultLauncher<String> pickImageLauncher;
 
+    // Threading helpers
+    private ExecutorService ioExecutor;
+    private Handler mainHandler;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -67,6 +74,55 @@ public class EditClubInfo extends AppCompatActivity {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
+
+        // ---------- Bottom Navigation ----------
+        BottomNavigationView bottomNavigationView = findViewById(R.id.bottomNav);
+
+        // Prevents the listener from firing navigation on initial selection
+        final boolean[] isInitialSelection = {true};
+
+        bottomNavigationView.setOnItemSelectedListener(item -> {
+            if (isInitialSelection[0]) {
+                isInitialSelection[0] = false;
+                return true;
+            }
+
+            int itemId = item.getItemId();
+
+            if (itemId == R.id.nav_home) {
+                // From Edit → go back to main clubs list
+                Intent intent = new Intent(EditClubInfo.this, MainActivity.class);
+                startActivity(intent);
+                finish();
+                return true;
+            } else if (itemId == R.id.nav_events) {
+                startActivity(new Intent(EditClubInfo.this, EventsActivity.class));
+                finish();
+                return true;
+            } else if (itemId == R.id.nav_messages) {
+                startActivity(new Intent(EditClubInfo.this, ChatListActivity.class));
+                finish();
+                return true;
+            } else if (itemId == R.id.nav_announcements) {
+                startActivity(new Intent(EditClubInfo.this, AnnouncementsActivity.class));
+                finish();
+                return true;
+            } else if (itemId == R.id.nav_profile) {
+                startActivity(new Intent(EditClubInfo.this, profile.class));
+                finish();
+                return true;
+            }
+
+            return false;
+        });
+
+        // Highlight the current tab (home/clubs)
+        bottomNavigationView.setSelectedItemId(R.id.nav_home);
+
+
+        // Threading init
+        ioExecutor = Executors.newSingleThreadExecutor();
+        mainHandler = new Handler(Looper.getMainLooper());
 
         bindViews();
         initFirebase();
@@ -149,21 +205,32 @@ public class EditClubInfo extends AppCompatActivity {
     }
 
     private void setupImagePickers() {
-        // Camera: TakePicturePreview -> Bitmap -> save to gallery -> Uri
+        // Camera: TakePicturePreview -> Bitmap -> save to gallery on background thread -> Uri
         takePictureLauncher = registerForActivityResult(
                 new ActivityResultContracts.TakePicturePreview(),
                 (Bitmap bitmap) -> {
                     if (bitmap != null) {
-                        imageView4.setImageBitmap(bitmap);
-                        Uri saved = saveImageToGallery(bitmap);
-                        if (saved != null) {
-                            imageUri = saved; // new image chosen
-                        }
+
+                        // Offload saving to gallery to background thread
+                        ioExecutor.execute(() -> {
+                            Uri saved = saveImageToGallery(bitmap);
+
+                            // Back to main thread for UI updates
+                            mainHandler.post(() -> {
+                                if (isFinishing() || isDestroyed()) return;
+
+                                if (saved != null) {
+                                    imageUri = saved;  // new image chosen
+                                }
+                                // Show preview regardless of save success
+                                imageView4.setImageBitmap(bitmap);
+                            });
+                        });
                     }
                 }
         );
 
-        // Gallery: pick from device
+        // Gallery: pick from device (already async)
         pickImageLauncher = registerForActivityResult(
                 new ActivityResultContracts.GetContent(),
                 (Uri uri) -> {
@@ -182,8 +249,8 @@ public class EditClubInfo extends AppCompatActivity {
         btnCancel.setOnClickListener(v -> finish());
 
         btnSubmit.setOnClickListener(v -> {
-            String name            = edtClubNameAdd.getText().toString().trim();
-            String desc            = edtClubDescriptionAdd.getText().toString().trim();
+            String name             = edtClubNameAdd.getText().toString().trim();
+            String desc             = edtClubDescriptionAdd.getText().toString().trim();
             String selectedCategory = actCategory.getText().toString().trim();
 
             if (name.isEmpty() || desc.isEmpty() || selectedCategory.isEmpty()) {
@@ -257,32 +324,30 @@ public class EditClubInfo extends AppCompatActivity {
         updated.setCategory(category);
 
         clubRef.setValue(updated)
-                .addOnSuccessListener(new OnSuccessListener<Void>() {
-                    @Override
-                    public void onSuccess(Void unused) {
-                        btnSubmit.setEnabled(true);
-                        Toast.makeText(EditClubInfo.this, "Club updated successfully", Toast.LENGTH_SHORT).show();
+                .addOnSuccessListener(unused -> {
+                    btnSubmit.setEnabled(true);
+                    Toast.makeText(EditClubInfo.this,
+                            "Club updated successfully",
+                            Toast.LENGTH_SHORT
+                    ).show();
 
-                        // Go to main page and clear back stack
-                        Intent intent = new Intent(EditClubInfo.this, MainActivity.class);
-                        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
-                        startActivity(intent);
-                    }
+                    // Go to main page and clear back stack
+                    Intent intent = new Intent(EditClubInfo.this, MainActivity.class);
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                    startActivity(intent);
                 })
-                .addOnFailureListener(new OnFailureListener() {
-                    @Override
-                    public void onFailure(@NonNull Exception e) {
-                        btnSubmit.setEnabled(true);
-                        Toast.makeText(EditClubInfo.this,
-                                "Failed to update club: " + e.getMessage(),
-                                Toast.LENGTH_LONG
-                        ).show();
-                    }
+                .addOnFailureListener(e -> {
+                    btnSubmit.setEnabled(true);
+                    Toast.makeText(EditClubInfo.this,
+                            "Failed to update club: " + e.getMessage(),
+                            Toast.LENGTH_LONG
+                    ).show();
                 });
     }
 
     /**
      * Save camera bitmap to gallery and return its Uri so we can upload to Firebase Storage.
+     * This is called on a background thread.
      */
     private Uri saveImageToGallery(Bitmap bitmap) {
         String savedImageURL = MediaStore.Images.Media.insertImage(
@@ -342,5 +407,13 @@ public class EditClubInfo extends AppCompatActivity {
                             Toast.LENGTH_LONG
                     ).show();
                 });
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (ioExecutor != null && !ioExecutor.isShutdown()) {
+            ioExecutor.shutdown();
+        }
     }
 }
