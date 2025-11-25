@@ -4,7 +4,6 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
 import android.widget.Toast;
-
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
@@ -20,11 +19,6 @@ import android.graphics.Color;
 import android.content.res.ColorStateList;
 import androidx.core.content.ContextCompat;
 import android.view.ContextThemeWrapper;
-
-<<<<<<< Updated upstream
-=======
-
->>>>>>> Stashed changes
 import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
@@ -35,12 +29,10 @@ import android.view.ContextThemeWrapper;     //  import for rounded chip style
 
 import com.google.android.material.chip.Chip;
 import com.google.android.material.chip.ChipGroup;
-<<<<<<< Updated upstream
-=======
+
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
->>>>>>> Stashed changes
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -81,9 +73,6 @@ public class MainActivity extends AppCompatActivity {
             return insets;
         });
 
-<<<<<<< Updated upstream
-        // Firebase init
-=======
 
         // Bottom Navigation setup
         BottomNavigationView bottomNavigationView = findViewById(R.id.bottomNavigationView);
@@ -134,7 +123,7 @@ public class MainActivity extends AppCompatActivity {
 
         // Initialize Firebase Database instance and reference to "CourseInfo" node
 
->>>>>>> Stashed changes
+
         firebaseDatabase = FirebaseDatabase.getInstance();
         databaseReference = firebaseDatabase.getReference("ClubInfo");
 
