@@ -12,8 +12,6 @@
         <item name="android:textSize">14sp</item>
     </style>
 
-
->>>>>>> Stashed changes
     <style name="Theme.Clublink" parent="Base.Theme.Clublink" />
     <style name="ShapeAppearanceOverlay_Events_Rounded20">
         <item name="cornerFamily">rounded</item>
