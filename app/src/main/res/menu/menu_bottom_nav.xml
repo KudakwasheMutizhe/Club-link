@@ -20,7 +20,7 @@
         android:title="Messages" />
 
     <item
-        android:id="@+id/nav_announcement"
+        android:id="@+id/nav_announcements"
         android:enabled="true"
         android:icon="@drawable/ic_announcement"
         android:title="Announcements" />
