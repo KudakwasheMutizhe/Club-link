@@ -21,6 +21,7 @@ import android.content.res.ColorStateList;
 import androidx.core.content.ContextCompat;
 import android.view.ContextThemeWrapper;
 
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
@@ -70,6 +71,54 @@ public class MainActivity extends AppCompatActivity {
             v.setPadding(systemBars.left, systemBars.top, systemBars.right, systemBars.bottom);
             return insets;
         });
+
+        // ---------- Bottom Navigation ----------
+        BottomNavigationView bottomNavigationView = findViewById(R.id.bottomNav);
+
+        // This flag prevents the listener from re-navigating when the screen first loads.
+        final boolean[] isInitialSelection = {true};
+
+        // 1. Set the listener FIRST
+        bottomNavigationView.setOnItemSelectedListener(item -> {
+            // If this is the first selection event (on screen load), ignore it.
+            if (isInitialSelection[0]) {
+                isInitialSelection[0] = false; // Mark as handled
+                return true; // Consume the event, but do nothing.
+            }
+
+            int itemId = item.getItemId();
+
+            if (itemId == R.id.nav_home) {
+                // Already on the home screen, do nothing.
+                return true;
+            } else if (itemId == R.id.nav_events) {
+                startActivity(new Intent(MainActivity.this, EventsActivity.class));
+                finish(); // Finish MainActivity so the back button works as expected
+                return true;
+            } else if (itemId == R.id.nav_messages) {
+                // Note: You may want to go to ChatListActivity instead of DashboardActivity
+                // depending on your app's flow.
+                Intent intent = new Intent(MainActivity.this, ChatListActivity.class);
+                startActivity(intent);
+                finish();
+                return true;
+            } else if (itemId == R.id.nav_announcements) {
+                startActivity(new Intent(MainActivity.this, AnnouncementsActivity.class));
+                finish();
+                return true;
+            } else if (itemId == R.id.nav_profile) {
+                startActivity(new Intent(MainActivity.this, profile.class));
+                finish();
+                return true;
+            }
+
+            return false;
+        });
+
+        // 2. Set the selected item SECOND to highlight the correct tab.
+        bottomNavigationView.setSelectedItemId(R.id.nav_home);
+
+
 
         // Firebase init
         firebaseDatabase = FirebaseDatabase.getInstance();

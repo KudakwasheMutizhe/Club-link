@@ -103,11 +103,6 @@ public class EventsActivity extends AppCompatActivity implements EventsAdapter.C
         showForDay(System.currentTimeMillis());
     }
 
-// === END: REPLACEMENT CODE FOR profile.java ===
-
-
-
-
     private void showForDay(long dayMillis) {
         currentDay = dayMillis;
         List<Event> events = repo.getOnDay(dayMillis);
