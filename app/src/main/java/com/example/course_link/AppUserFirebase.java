@@ -1,7 +1,7 @@
 package com.example.course_link;
 
 /**
- * User profile stored in Firebase Realtime Database under /users/{userId}
+ * User ProfileActivity stored in Firebase Realtime Database under /users/{userId}
  */
 public class AppUserFirebase {
     public long id;

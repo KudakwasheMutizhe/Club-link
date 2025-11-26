@@ -57,7 +57,7 @@ public class SignupActivity extends AppCompatActivity {
                 SessionManager sm = new SessionManager(SignupActivity.this);
                 sm.saveLogin(userId, username);
 
-                // Also push user profile into Firebase /users/{userId}
+                // Also push user ProfileActivity into Firebase /users/{userId}
                 AppUserFirebase fbUser = new AppUserFirebase(
                         userId,
                         fullname,

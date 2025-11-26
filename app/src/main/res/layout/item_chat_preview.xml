@@ -7,7 +7,7 @@
     android:background="?attr/selectableItemBackground"
     android:gravity="center_vertical">
 
-    <!-- Profile Circle -->
+    <!-- ProfileActivity Circle -->
     <View
         android:layout_width="50dp"
         android:layout_height="50dp"

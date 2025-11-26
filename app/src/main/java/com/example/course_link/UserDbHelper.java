@@ -107,7 +107,7 @@ public class UserDbHelper extends SQLiteOpenHelper {
         return user;
     }
 
-    // 🔹 NEW: Get a user by database id (for profile screen)
+    // 🔹 NEW: Get a user by database id (for ProfileActivity screen)
     public User getUserById(long id) {
         SQLiteDatabase db = this.getReadableDatabase();
 
@@ -153,7 +153,7 @@ public class UserDbHelper extends SQLiteOpenHelper {
         return rows > 0;
     }
 
-    // 🔹 NEW: Delete user by database id (for "Delete account" in profile)
+    // 🔹 NEW: Delete user by database id (for "Delete account" in ProfileActivity)
     public boolean deleteUserById(long id) {
         SQLiteDatabase db = this.getWritableDatabase();
         int rows = db.delete(TABLE_USERS, COL_ID + " = ?", new String[]{String.valueOf(id)});

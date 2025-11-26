@@ -8,7 +8,6 @@ import android.widget.EditText;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
-import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -22,14 +21,12 @@ import com.google.firebase.database.FirebaseDatabase;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Map;
 
 /**
- * ChatListActivity - Shows list of chat conversations.
- * Only shows chats where the logged-in user is a participant.
- *
- * Rules:
- *  - When Account A logs in, they only see chats where participants/<A_id> == true.
- *  - A does NOT see B's chats with C/D unless A is also in participants.
+ * ChatListActivity - Shows list of all chat conversations
+ * Only shows chats where the logged-in user is a participant,
+ * and the title is the OTHER user's name.
  */
 public class ChatListActivity extends AppCompatActivity {
 
@@ -43,11 +40,13 @@ public class ChatListActivity extends AppCompatActivity {
 
     private DatabaseReference chatsRef;
     private DatabaseReference messagesRef;
+    private DatabaseReference usersRef;     // 🔹 NEW: /users in Firebase
 
     // Session / user info
     private SessionManager sessionManager;
     private long currentUserId;
     private String currentUserIdStr;
+    private String currentUsername;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -62,16 +61,16 @@ public class ChatListActivity extends AppCompatActivity {
         // ---------- Session / SQLite user ----------
         sessionManager = new SessionManager(this);
         currentUserId = sessionManager.getUserId();
+        currentUserIdStr = String.valueOf(currentUserId);
+        currentUsername = sessionManager.getUsername();
 
         if (currentUserId == -1) {
-            // No logged-in user → send to Login
             startActivity(new Intent(this, LoginActivity.class));
             finish();
             return;
         }
 
-        currentUserIdStr = String.valueOf(currentUserId);
-        Log.d(TAG, "Logged in as userId = " + currentUserIdStr);
+        Log.d(TAG, "Logged in as userId = " + currentUserIdStr + ", username = " + currentUsername);
 
         // ---------- Bottom Navigation ----------
         BottomNavigationView bottomNavigationView = findViewById(R.id.bottomNavigationView);
@@ -102,7 +101,7 @@ public class ChatListActivity extends AppCompatActivity {
                     finish();
                     return true;
                 } else if (itemId == R.id.nav_profile) {
-                    startActivity(new Intent(ChatListActivity.this, profile.class));
+                    startActivity(new Intent(ChatListActivity.this, ProfileActivity.class));
                     finish();
                     return true;
                 }
@@ -113,11 +112,11 @@ public class ChatListActivity extends AppCompatActivity {
             bottomNavigationView.setSelectedItemId(R.id.nav_messages);
         }
 
-        // ---------- Adapter + RecyclerView ----------
+        // ✅ Adapter: opens DashboardActivity for that chat
         adapter = new ChatListAdapter(chatPreview -> {
             Intent intent = new Intent(ChatListActivity.this, DashboardActivity.class);
             intent.putExtra("CHAT_ID", chatPreview.getChatId());
-            intent.putExtra("CHAT_NAME", chatPreview.getChatName());
+            intent.putExtra("CHAT_NAME", chatPreview.getChatName());  // this is the OTHER user's name
             startActivity(intent);
         });
 
@@ -128,38 +127,26 @@ public class ChatListActivity extends AppCompatActivity {
         FirebaseDatabase database = FirebaseDatabase.getInstance(DB_URL);
         chatsRef = database.getReference("chats");
         messagesRef = database.getReference("messages_v2");
+        usersRef = database.getReference("users");
 
-        // Listen for chats where THIS user is a participant
+        // 🔹 Only load chats where this user is a participant
         loadChatsForCurrentUser();
 
-        // Create new chat button
+        // 🔹 NEW: + button opens user search (no more free-text chats)
         if (btnNewChat != null) {
             btnNewChat.setOnClickListener(v -> {
-                Log.d(TAG, "New Chat button clicked!");
                 Intent i = new Intent(ChatListActivity.this, UserSearchActivity.class);
                 startActivity(i);
             });
-        }
-        else {
+        } else {
             Log.e(TAG, "btnNewChat is NULL! Check your layout file.");
         }
     }
 
-    // Optional XML onClick hook if used in layout
-    public void onNewChatClick(android.view.View view) {
-        Log.d(TAG, "XML onClick fired!");
-        Toast.makeText(ChatListActivity.this, "XML onClick fired", Toast.LENGTH_SHORT).show();
-        showCreateChatDialog();
-    }
-
     /**
      * Load only chats where participants/<currentUserId> == true.
-     * So Account A only sees chats they are actually part of.
      */
     private void loadChatsForCurrentUser() {
-        chatPreviews.clear();
-        chatMap.clear();
-
         String childPath = "participants/" + currentUserIdStr;
 
         chatsRef.orderByChild(childPath)
@@ -167,28 +154,13 @@ public class ChatListActivity extends AppCompatActivity {
                 .addChildEventListener(new ChildEventListener() {
                     @Override
                     public void onChildAdded(@NonNull DataSnapshot snapshot, String previousChildName) {
-                        String chatId = snapshot.getKey();
-                        String chatName = snapshot.child("name").getValue(String.class);
-                        Long createdAt = snapshot.child("createdAt").getValue(Long.class);
-
-                        if (chatId != null && chatName != null) {
-                            loadLastMessage(chatId, chatName, createdAt != null ? createdAt : 0);
-                        }
+                        buildChatPreviewForSnapshot(snapshot);
                     }
 
                     @Override
                     public void onChildChanged(@NonNull DataSnapshot snapshot, String previousChildName) {
-                        String chatId = snapshot.getKey();
-                        String chatName = snapshot.child("name").getValue(String.class);
-
-                        if (chatId != null && chatName != null) {
-                            ChatPreview preview = chatMap.get(chatId);
-                            if (preview != null) {
-                                preview.setChatName(chatName);
-                                chatPreviews.sort((a, b) -> Long.compare(b.getTimestamp(), a.getTimestamp()));
-                                adapter.submitList(new ArrayList<>(chatPreviews));
-                            }
-                        }
+                        // If chat name or participants changed, rebuild preview
+                        buildChatPreviewForSnapshot(snapshot);
                     }
 
                     @Override
@@ -204,42 +176,112 @@ public class ChatListActivity extends AppCompatActivity {
                     }
 
                     @Override public void onChildMoved(@NonNull DataSnapshot snapshot, String previousChildName) { }
-
-                    @Override
-                    public void onCancelled(@NonNull DatabaseError error) {
+                    @Override public void onCancelled(@NonNull DatabaseError error) {
                         Log.e(TAG, "Firebase error: " + error.getMessage());
                     }
                 });
     }
 
-    private void loadLastMessage(String chatId, String chatName, long chatCreatedAt) {
+    /**
+     * Builds or updates a ChatPreview for this snapshot.
+     * Title = OTHER user's username/fullname, not mine.
+     */
+    private void buildChatPreviewForSnapshot(@NonNull DataSnapshot snapshot) {
+        String chatId = snapshot.getKey();
+        if (chatId == null) return;
+
+        Long createdAt = snapshot.child("createdAt").getValue(Long.class);
+        long chatCreatedAt = createdAt != null ? createdAt : 0L;
+
+        // 🔹 Find the "other" participant
+        DataSnapshot participantsSnap = snapshot.child("participants");
+        String otherUserIdStr = null;
+
+        for (DataSnapshot p : participantsSnap.getChildren()) {
+            String uid = p.getKey();
+            if (uid != null && !uid.equals(currentUserIdStr)) {
+                otherUserIdStr = uid;
+                break;
+            }
+        }
+
+        // If no other user (e.g. old self-chat or group chat), fall back to stored name
+        if (otherUserIdStr == null) {
+            String fallbackName = snapshot.child("name").getValue(String.class);
+            if (fallbackName == null || fallbackName.trim().isEmpty()) {
+                fallbackName = "Chat";
+            }
+            loadLastMessage(chatId, fallbackName, chatCreatedAt);
+            return;
+        }
+
+        // 🔹 Look up the OTHER user's profile in /users
+        String finalOtherUserIdStr = otherUserIdStr;
+        usersRef.child(otherUserIdStr)
+                .addListenerForSingleValueEvent(new com.google.firebase.database.ValueEventListener() {
+                    @Override
+                    public void onDataChange(@NonNull DataSnapshot userSnap) {
+                        AppUserFirebase otherUser = userSnap.getValue(AppUserFirebase.class);
+                        String displayName;
+
+                        if (otherUser != null) {
+                            if (otherUser.username != null && !otherUser.username.trim().isEmpty()) {
+                                displayName = otherUser.username;
+                            } else if (otherUser.fullname != null && !otherUser.fullname.trim().isEmpty()) {
+                                displayName = otherUser.fullname;
+                            } else {
+                                displayName = "User " + finalOtherUserIdStr;
+                            }
+                        } else {
+                            displayName = "User " + finalOtherUserIdStr;
+                        }
+
+                        // Now load last message and update preview with displayName
+                        loadLastMessage(chatId, displayName, chatCreatedAt);
+                    }
+
+                    @Override
+                    public void onCancelled(@NonNull DatabaseError error) {
+                        Log.e(TAG, "Failed to load user " + finalOtherUserIdStr, error.toException());
+                        // Fallback to generic name
+                        loadLastMessage(chatId, "User " + finalOtherUserIdStr, chatCreatedAt);
+                    }
+                });
+    }
+
+    /**
+     * Load the last message for a given chat and update ChatPreview list.
+     */
+    private void loadLastMessage(String chatId, String displayName, long chatCreatedAt) {
         messagesRef.orderByChild("chatId")
                 .equalTo(chatId)
                 .limitToLast(1)
                 .addListenerForSingleValueEvent(new com.google.firebase.database.ValueEventListener() {
                     @Override
                     public void onDataChange(@NonNull DataSnapshot snapshot) {
-                        String lastMessage = "No messages yet";
+                        String lastMessageText = "No messages yet";
                         long timestamp = chatCreatedAt;
 
                         for (DataSnapshot msgSnapshot : snapshot.getChildren()) {
                             MessageModal message = msgSnapshot.getValue(MessageModal.class);
                             if (message != null) {
-                                lastMessage = message.getSenderName() + ": " + message.getText();
+                                lastMessageText = message.getSenderName() + ": " + message.getText();
                                 timestamp = message.getCreatedAt();
                             }
                         }
 
                         ChatPreview preview = chatMap.get(chatId);
                         if (preview == null) {
-                            preview = new ChatPreview(chatId, chatName, lastMessage, timestamp, 0);
+                            preview = new ChatPreview(chatId, displayName, lastMessageText, timestamp, 0);
                             chatMap.put(chatId, preview);
                             chatPreviews.add(preview);
                         } else {
-                            preview.setLastMessage(lastMessage);
+                            preview.setChatName(displayName);
+                            preview.setLastMessage(lastMessageText);
                             preview.setTimestamp(timestamp);
                         }
 
+                        // Sort by latest activity
                         chatPreviews.sort((a, b) -> Long.compare(b.getTimestamp(), a.getTimestamp()));
                         adapter.submitList(new ArrayList<>(chatPreviews));
                     }
@@ -248,99 +290,6 @@ public class ChatListActivity extends AppCompatActivity {
                     public void onCancelled(@NonNull DatabaseError error) {
                         Log.e(TAG, "Error loading last message", error.toException());
                     }
-                });
-
-        // Also listen live for new messages in this chat to update preview
-        messagesRef.orderByChild("chatId")
-                .equalTo(chatId)
-                .addChildEventListener(new ChildEventListener() {
-                    @Override
-                    public void onChildAdded(@NonNull DataSnapshot snapshot, String previousChildName) {
-                        MessageModal message = snapshot.getValue(MessageModal.class);
-                        if (message != null) {
-                            updateChatPreview(chatId, chatName, message);
-                        }
-                    }
-
-                    @Override public void onChildChanged(@NonNull DataSnapshot snapshot, String previousChildName) { }
-                    @Override public void onChildRemoved(@NonNull DataSnapshot snapshot) { }
-                    @Override public void onChildMoved(@NonNull DataSnapshot snapshot, String previousChildName) { }
-                    @Override public void onCancelled(@NonNull DatabaseError error) { }
-                });
-    }
-
-    private void updateChatPreview(String chatId, String chatName, MessageModal message) {
-        ChatPreview preview = chatMap.get(chatId);
-        if (preview != null) {
-            preview.setLastMessage(message.getSenderName() + ": " + message.getText());
-            preview.setTimestamp(message.getCreatedAt());
-
-            // Move this chat to top
-            chatPreviews.remove(preview);
-            chatPreviews.add(0, preview);
-
-            adapter.submitList(new ArrayList<>(chatPreviews));
-        }
-    }
-
-    private void showCreateChatDialog() {
-        AlertDialog.Builder builder = new AlertDialog.Builder(ChatListActivity.this);
-        builder.setTitle("Create New Chat");
-
-        final EditText input = new EditText(ChatListActivity.this);
-        input.setHint("Enter chat name");
-        int pad = (int) (16 * getResources().getDisplayMetrics().density);
-        input.setPadding(pad, pad, pad, pad);
-        builder.setView(input);
-
-        builder.setPositiveButton("Create", (dialog, which) -> {
-            String chatName = input.getText().toString().trim();
-            if (!chatName.isEmpty()) {
-                createNewChat(chatName);
-            } else {
-                Toast.makeText(ChatListActivity.this, "Please enter a chat name", Toast.LENGTH_SHORT).show();
-            }
-        });
-
-        builder.setNegativeButton("Cancel", (dialog, which) -> dialog.cancel());
-
-        AlertDialog dialog = builder.create();
-        dialog.show();
-    }
-
-    private void createNewChat(String chatName) {
-        Log.d(TAG, "createNewChat called with name: " + chatName);
-
-        String chatId = chatsRef.push().getKey();
-        if (chatId == null) {
-            Toast.makeText(this, "Error creating chat", Toast.LENGTH_SHORT).show();
-            Log.e(TAG, "chatId is null from Firebase push()");
-            return;
-        }
-
-        // Include participants so we can filter by this user later
-        HashMap<String, Object> chatData = new HashMap<>();
-        HashMap<String, Boolean> participants = new HashMap<>();
-        participants.put(currentUserIdStr, true);  // current user is a participant
-
-        chatData.put("name", chatName);
-        chatData.put("createdAt", System.currentTimeMillis());
-        chatData.put("participants", participants);
-
-        chatsRef.child(chatId).setValue(chatData)
-                .addOnSuccessListener(aVoid -> {
-                    Log.d(TAG, "Chat created successfully, id: " + chatId);
-                    Toast.makeText(this, "Chat created!", Toast.LENGTH_SHORT).show();
-
-                    // Open the new chat
-                    Intent intent = new Intent(ChatListActivity.this, DashboardActivity.class);
-                    intent.putExtra("CHAT_ID", chatId);
-                    intent.putExtra("CHAT_NAME", chatName);
-                    startActivity(intent);
-                })
-                .addOnFailureListener(e -> {
-                    Toast.makeText(this, "Failed to create chat", Toast.LENGTH_SHORT).show();
-                    Log.e(TAG, "Error creating chat", e);
                 });
     }
 }

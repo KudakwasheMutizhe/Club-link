@@ -130,7 +130,7 @@ public class AnnouncementsActivity extends AppCompatActivity implements Announce
                     // already here
                     return true;
                 } else if (itemId == R.id.nav_profile) {
-                    startActivity(new Intent(AnnouncementsActivity.this, profile.class));
+                    startActivity(new Intent(AnnouncementsActivity.this, ProfileActivity.class));
                     finish();
                     return true;
                 }

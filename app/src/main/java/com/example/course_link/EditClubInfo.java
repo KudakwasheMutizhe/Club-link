@@ -108,7 +108,7 @@ public class EditClubInfo extends AppCompatActivity {
                 finish();
                 return true;
             } else if (itemId == R.id.nav_profile) {
-                startActivity(new Intent(EditClubInfo.this, profile.class));
+                startActivity(new Intent(EditClubInfo.this, ProfileActivity.class));
                 finish();
                 return true;
             }

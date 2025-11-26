@@ -4,7 +4,6 @@ import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
-import android.view.View;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.TextView;
@@ -22,10 +21,9 @@ import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 import de.hdodenhof.circleimageview.CircleImageView;
 
-public class profile extends AppCompatActivity {
+public class ProfileActivity extends AppCompatActivity {
 
-    private ImageButton btnBack;
-    private ImageButton btnSettings;
+
     private CircleImageView ivProfilePic;
     private ImageButton btnEditPhoto;
     private TextView tvDisplayName;
@@ -33,13 +31,13 @@ public class profile extends AppCompatActivity {
     private TextView tvBio;
     private TextView tvCampus;
 
-    // Activity result launcher for edit profile
+    // Activity result launcher for edit ProfileActivity
     private final ActivityResultLauncher<Intent> editProfileLauncher =
             registerForActivityResult(
                     new ActivityResultContracts.StartActivityForResult(),
                     result -> {
                         if (result.getResultCode() == RESULT_OK) {
-                            // Reload profile data when coming back from EditProfileActivity
+                            // Reload ProfileActivity data when coming back from EditProfileActivity
                             loadUserProfile();
                         }
                     }
@@ -75,26 +73,26 @@ public class profile extends AppCompatActivity {
             int itemId = item.getItemId();
 
             if (itemId == R.id.nav_home) {
-                startActivity(new Intent(profile.this, MainActivity.class));
+                startActivity(new Intent(ProfileActivity.this, MainActivity.class));
                 finish();
                 return true;
             } else if (itemId == R.id.nav_events) {
-                startActivity(new Intent(profile.this, EventsActivity.class));
+                startActivity(new Intent(ProfileActivity.this, EventsActivity.class));
                 finish();
                 return true;
             } else if (itemId == R.id.nav_messages) {
-                Intent intent = new Intent(profile.this, ChatListActivity.class);
+                Intent intent = new Intent(ProfileActivity.this, ChatListActivity.class);
                 intent.putExtra("CHAT_ID", "GLOBAL_CHAT");
                 intent.putExtra("CHAT_NAME", "Messages");
                 startActivity(intent);
                 finish();
                 return true;
             } else if (itemId == R.id.nav_announcements) {
-                startActivity(new Intent(profile.this, AnnouncementsActivity.class));
+                startActivity(new Intent(ProfileActivity.this, AnnouncementsActivity.class));
                 finish();
                 return true;
             } else if (itemId == R.id.nav_profile) {
-                // Already on the profile screen, do nothing.
+                // Already on the ProfileActivity screen, do nothing.
                 return true;
             }
 
@@ -115,23 +113,21 @@ public class profile extends AppCompatActivity {
         // ---------- Listeners ----------
         setupListeners();
 
-        // ---------- Load profile data from SQLite ----------
+        // ---------- Load ProfileActivity data from SQLite ----------
         loadUserProfile();
     }
 
     private void setupListeners() {
 
         // Settings button
-        btnSettings.setOnClickListener(v ->
-                Toast.makeText(this, "Settings coming soon", Toast.LENGTH_SHORT).show()
-        );
+
 
         // Edit photo button
         btnEditPhoto.setOnClickListener(v ->
                 Toast.makeText(this, "Photo upload coming soon", Toast.LENGTH_SHORT).show()
         );
 
-        // Edit profile button (still launches your EditProfileActivity if you use it)
+        // Edit ProfileActivity button (still launches your EditProfileActivity if you use it)
         findViewById(R.id.btnEditProfile).setOnClickListener(v -> {
             Intent intent = new Intent(this, EditProfileActivity.class);
             intent.putExtra("displayName", tvDisplayName.getText().toString());
@@ -151,7 +147,7 @@ public class profile extends AppCompatActivity {
     }
 
     /**
-     * Load user profile from SQLite using the username saved in SharedPreferences.
+     * Load user ProfileActivity from SQLite using the username saved in SharedPreferences.
      */
     private void loadUserProfile() {
         SharedPreferences prefs = getSharedPreferences("user_prefs", MODE_PRIVATE);
@@ -256,7 +252,7 @@ public class profile extends AppCompatActivity {
                     Toast.makeText(this, "Logged out successfully", Toast.LENGTH_SHORT).show();
 
                     // Optionally go to LoginActivity or a welcome screen
-                    Intent intent = new Intent(profile.this, LoginActivity.class);
+                    Intent intent = new Intent(ProfileActivity.this, LoginActivity.class);
                     startActivity(intent);
                     finish();
                 })
@@ -304,7 +300,7 @@ public class profile extends AppCompatActivity {
                                     Toast.makeText(this, "Account deleted successfully", Toast.LENGTH_SHORT).show();
 
                                     // Go back to login or welcome
-                                    Intent intent = new Intent(profile.this, LoginActivity.class);
+                                    Intent intent = new Intent(ProfileActivity.this, LoginActivity.class);
                                     startActivity(intent);
                                     finish();
                                 } else {

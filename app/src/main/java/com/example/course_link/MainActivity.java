@@ -105,7 +105,7 @@ public class MainActivity extends AppCompatActivity {
                 finish();
                 return true;
             } else if (itemId == R.id.nav_profile) {
-                startActivity(new Intent(MainActivity.this, profile.class));
+                startActivity(new Intent(MainActivity.this, ProfileActivity.class));
                 finish();
                 return true;
             }

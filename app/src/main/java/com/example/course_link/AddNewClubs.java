@@ -102,7 +102,7 @@ public class AddNewClubs extends AppCompatActivity {
                 finish();
                 return true;
             } else if (itemId == R.id.nav_profile) {
-                startActivity(new Intent(AddNewClubs.this, profile.class));
+                startActivity(new Intent(AddNewClubs.this, ProfileActivity.class));
                 finish();
                 return true;
             }

@@ -6,7 +6,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="#F8F8F8"
-    tools:context=".profile">
+    tools:context=".ProfileActivity">
 
     <!-- Top Blue Header Bar -->
     <LinearLayout
@@ -53,7 +53,7 @@
             android:layout_height="wrap_content"
             android:orientation="vertical">
 
-            <!-- Profile Card -->
+            <!-- ProfileActivity Card -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
@@ -68,7 +68,7 @@
                     android:padding="20dp"
                     android:gravity="center">
 
-                    <!-- Profile Picture -->
+                    <!-- ProfileActivity Picture -->
                     <RelativeLayout
                         android:layout_width="120dp"
                         android:layout_height="120dp">
@@ -116,7 +116,7 @@
                         android:textColor="#666666"
                         android:layout_marginTop="4dp" />
 
-                    <!-- Edit Profile Button -->
+                    <!-- Edit ProfileActivity Button -->
                     <Button
                         android:id="@+id/btnEditProfile"
                         android:layout_width="wrap_content"
@@ -132,7 +132,7 @@
 
             </androidx.cardview.widget.CardView>
 
-            <!-- Profile Information Card -->
+            <!-- ProfileActivity Information Card -->
             <androidx.cardview.widget.CardView
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"

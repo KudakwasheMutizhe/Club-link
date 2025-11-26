@@ -46,7 +46,7 @@ public class EventDetailsActivity extends AppCompatActivity {
                     finish();
                     return true;
                 } else if (itemId == R.id.nav_profile) {
-                    startActivity(new Intent(EventDetailsActivity.this, profile.class));
+                    startActivity(new Intent(EventDetailsActivity.this, ProfileActivity.class));
                     finish();
                     return true;
                 }

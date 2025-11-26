@@ -12,7 +12,6 @@ import androidx.appcompat.widget.SearchView;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
 import com.example.course_link.databinding.ActivityEventsBinding;
-import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 import java.util.List;
 
@@ -80,8 +79,8 @@ public class EventsActivity extends AppCompatActivity implements EventsAdapter.C
                 finish();
                 return true;
             } else if (itemId == R.id.nav_profile) {
-                // CORRECTED: This should start the profile activity
-                startActivity(new Intent(EventsActivity.this, profile.class));
+                // CORRECTED: This should start the ProfileActivity activity
+                startActivity(new Intent(EventsActivity.this, ProfileActivity.class));
                 finish();
                 return true;
             }

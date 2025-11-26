@@ -65,7 +65,7 @@ public class EditProfileActivity extends AppCompatActivity {
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         spinnerCampus.setAdapter(adapter);
 
-        // Load current profile data from Intent
+        // Load current ProfileActivity data from Intent
         loadCurrentData();
 
         // Set up listeners
@@ -73,7 +73,7 @@ public class EditProfileActivity extends AppCompatActivity {
     }
 
     private void loadCurrentData() {
-        // Get data passed from Profile Activity
+        // Get data passed from ProfileActivity Activity
         String displayName = getIntent().getStringExtra("displayName");
         String bio = getIntent().getStringExtra("bio");
         String campus = getIntent().getStringExtra("campus");
@@ -123,7 +123,7 @@ public class EditProfileActivity extends AppCompatActivity {
         String username = prefs.getString("logged_in_username", null);
 
         if (username == null) {
-            Toast.makeText(this, "You must be logged in to update profile", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "You must be logged in to update ProfileActivity", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -131,16 +131,16 @@ public class EditProfileActivity extends AppCompatActivity {
         btnSave.setEnabled(false);
         btnSave.setText("Saving...");
 
-        // Save profile fields into SharedPreferences (per-user keys)
+        // Save ProfileActivity fields into SharedPreferences (per-user keys)
         SharedPreferences.Editor editor = prefs.edit();
         editor.putString("displayName_" + username, displayName);
         editor.putString("bio_" + username, bio);
         editor.putString("campus_" + username, campus);
         editor.apply();
 
-        Toast.makeText(this, "Profile updated successfully!", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "ProfileActivity updated successfully!", Toast.LENGTH_SHORT).show();
 
-        // Let profile Activity know it should reload
+        // Let ProfileActivity Activity know it should reload
         setResult(RESULT_OK);
         finish();
     }
