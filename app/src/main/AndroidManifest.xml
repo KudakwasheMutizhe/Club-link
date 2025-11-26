@@ -45,9 +45,12 @@
             android:exported="false" />
         <activity
             android:name=".MainActivity"
-            android:exported="true">
-
-        </activity>
+            android:exported="true"/>
+        <activity
+            android:name="EventDetailsActivity"
+            android:label="Event Details"
+            android:exported="false"
+            android:theme="@style/Theme.Material3.DayNight.NoActionBar" />
         <activity
             android:name=".WelcomeActivity"
             android:exported="true">
