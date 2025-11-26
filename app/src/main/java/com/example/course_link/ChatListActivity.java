@@ -136,9 +136,11 @@ public class ChatListActivity extends AppCompatActivity {
         if (btnNewChat != null) {
             btnNewChat.setOnClickListener(v -> {
                 Log.d(TAG, "New Chat button clicked!");
-                showCreateChatDialog();
+                Intent i = new Intent(ChatListActivity.this, UserSearchActivity.class);
+                startActivity(i);
             });
-        } else {
+        }
+        else {
             Log.e(TAG, "btnNewChat is NULL! Check your layout file.");
         }
     }

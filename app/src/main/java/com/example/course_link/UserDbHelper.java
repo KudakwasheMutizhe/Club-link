@@ -160,5 +160,44 @@ public class UserDbHelper extends SQLiteOpenHelper {
         db.close();
         return rows > 0;
     }
+    // Simple user model for search list
+    public static class SimpleUser {
+        public long id;
+        public String username;
+        public String fullname;
+
+        public SimpleUser(long id, String username, String fullname) {
+            this.id = id;
+            this.username = username;
+            this.fullname = fullname;
+        }
+    }
+
+    // Get all users except the given id
+    public java.util.List<SimpleUser> getAllUsersExcept(long excludeId) {
+        java.util.List<SimpleUser> users = new java.util.ArrayList<>();
+
+        SQLiteDatabase db = this.getReadableDatabase();
+        Cursor cursor = db.rawQuery(
+                "SELECT " + COL_ID + ", " + COL_USERNAME + ", " + COL_FULLNAME +
+                        " FROM " + TABLE_USERS +
+                        " WHERE " + COL_ID + " != ?",
+                new String[]{String.valueOf(excludeId)}
+        );
+
+        if (cursor != null) {
+            while (cursor.moveToNext()) {
+                long id = cursor.getLong(cursor.getColumnIndexOrThrow(COL_ID));
+                String username = cursor.getString(cursor.getColumnIndexOrThrow(COL_USERNAME));
+                String fullname = cursor.getString(cursor.getColumnIndexOrThrow(COL_FULLNAME));
+                users.add(new SimpleUser(id, username, fullname));
+            }
+            cursor.close();
+        }
+
+        db.close();
+        return users;
+    }
+
 }
 

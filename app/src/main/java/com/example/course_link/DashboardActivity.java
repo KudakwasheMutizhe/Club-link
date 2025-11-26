@@ -6,7 +6,11 @@ import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
+import android.text.Editable;
 import android.text.TextUtils;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
@@ -32,21 +36,19 @@ import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
 import java.util.HashSet;
 
 /**
  * DashboardActivity - Real-time Firebase chat with push notifications.
- * Used as the Messages screen for a single chat.
- *
- * Uses:
- *  - SessionManager → logged-in SQLite user id
- *  - SharedPreferences("user_prefs") → username (logged_in_username)
+ * Uses SQLite userId + username, supports typing indicator.
  */
 public class DashboardActivity extends AppCompatActivity implements MessageAdapter.MyIdProvider {
 
     private static final String TAG = "DashboardActivity";
+    private static final String DB_URL = "https://club-link-default-rtdb.firebaseio.com/";
 
     // Views
     private ImageButton btnSend;
@@ -54,6 +56,7 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
     private EditText etMessage;
     private RecyclerView recyclerView;
     private TextView tvChatName;
+    private TextView tvTypingIndicator;
 
     // Adapter + data
     private MessageAdapter adapter;
@@ -64,18 +67,24 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
     private DatabaseReference messagesRef;
     private ChildEventListener messagesListener;
 
+    // Typing
+    private DatabaseReference typingRef;            // typing/{chatId}
+    private ValueEventListener typingListener;
+    private Handler typingHandler;
+    private Runnable typingTimeoutRunnable;
+
     // Chat info
     private String currentChatId;
     private String currentChatName;
 
-    // Logged-in user identity
+    // Logged-in user (from SessionManager + prefs)
     private SessionManager sessionManager;
     private long currentUserId;
-    private String myId;    // string version of SQLite user id
-    private String myName;  // username shown in messages
+    private String myId;     // String version of userId
+    private String myName;   // username
 
-    private static final String USER_PREFS = "user_prefs";
-    private static final String KEY_LOGGED_IN_USERNAME = "logged_in_username";
+    private static final String PREFS_NAME = "user_prefs"; // same as you used for logged_in_username
+    private static final String KEY_USERNAME = "logged_in_username";
 
     // Notification permission launcher
     private final ActivityResultLauncher<String> requestPermissionLauncher =
@@ -91,7 +100,7 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
-        setContentView(R.layout.activity_messages);   // uses your messages.xml layout
+        setContentView(R.layout.activity_messages);   // uses your messages layout
 
         // Handle system bars padding for root @+id/main
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
@@ -100,28 +109,7 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
             return insets;
         });
 
-        // ---------- Session / logged-in user ----------
-        sessionManager = new SessionManager(this);
-        currentUserId = sessionManager.getUserId();
-
-        if (currentUserId == -1) {
-            // Nobody logged in → back to login
-            startActivity(new Intent(this, LoginActivity.class));
-            finish();
-            return;
-        }
-
-        myId = String.valueOf(currentUserId);
-
-        // Get username from the same prefs you use in LoginActivity / SignupActivity
-        SharedPreferences userPrefs = getSharedPreferences(USER_PREFS, MODE_PRIVATE);
-        myName = userPrefs.getString(KEY_LOGGED_IN_USERNAME, null);
-
-        if (myName == null || myName.trim().isEmpty()) {
-            myName = "User-" + myId;  // fallback
-        }
-
-        // ---------- Get chat info from intent ----------
+        // ---------- Chat info from intent ----------
         Intent intent = getIntent();
         currentChatId = intent.getStringExtra("CHAT_ID");
         currentChatName = intent.getStringExtra("CHAT_NAME");
@@ -129,12 +117,27 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
         if (currentChatId == null) currentChatId = "GLOBAL_CHAT";
         if (currentChatName == null) currentChatName = "Messages";
 
+        // ---------- Logged-in user from SessionManager + username prefs ----------
+        sessionManager = new SessionManager(this);
+        currentUserId = sessionManager.getUserId();
+        if (currentUserId == -1) {
+            // No logged-in user, go back to Login
+            startActivity(new Intent(this, LoginActivity.class));
+            finish();
+            return;
+        }
+        myId = String.valueOf(currentUserId);
+
+        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
+        myName = prefs.getString(KEY_USERNAME, "User-" + myId);
+
         Log.d(TAG, "myId = " + myId + ", myName = " + myName);
         Log.d(TAG, "chatId = " + currentChatId + ", chatName = " + currentChatName);
 
         // ---------- Firebase ----------
-        FirebaseDatabase database = FirebaseDatabase.getInstance();
+        FirebaseDatabase database = FirebaseDatabase.getInstance(DB_URL);
         messagesRef = database.getReference("messages_v2");
+        typingRef = database.getReference("typing").child(currentChatId);
 
         // ---------- Hook views ----------
         recyclerView = findViewById(R.id.rvMessages);
@@ -142,11 +145,11 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
         btnSend = findViewById(R.id.btnSend);
         btnBack = findViewById(R.id.btnBack);
         tvChatName = findViewById(R.id.tvChatName);
+        tvTypingIndicator = findViewById(R.id.tvTypingIndicator);
 
-        // Set chat name in header
         tvChatName.setText(currentChatName);
+        tvTypingIndicator.setVisibility(android.view.View.GONE);
 
-        // Back button: go back to chat list
         btnBack.setOnClickListener(v -> finish());
 
         // ---------- RecyclerView setup ----------
@@ -167,12 +170,16 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
             return false;
         });
 
+        // ---------- Typing indicator setup ----------
+        typingHandler = new Handler(Looper.getMainLooper());
+        setupTypingListener();
+        setupTypingPublisher();
+
         // Listen for messages in this chat only
-        setupFirebaseListener();
+        setupFirebaseMessagesListener();
 
-        // Notification permission
+        // Ask for notification permission when needed
         requestNotificationPermission();
-
     }
 
     // ---------- Notification permission ----------
@@ -194,8 +201,8 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
         NotificationHelper.subscribeToAnnouncements();
     }
 
-    // ---------- Firebase listener ----------
-    private void setupFirebaseListener() {
+    // ---------- Firebase messages listener ----------
+    private void setupFirebaseMessagesListener() {
         messagesListener = new ChildEventListener() {
             @Override
             public void onChildAdded(@NonNull DataSnapshot snapshot, String previousChildName) {
@@ -211,7 +218,8 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
                 }
             }
 
-            @Override public void onChildChanged(@NonNull DataSnapshot snapshot, String previousChildName) { }
+            @Override
+            public void onChildChanged(@NonNull DataSnapshot snapshot, String previousChildName) { }
 
             @Override
             public void onChildRemoved(@NonNull DataSnapshot snapshot) {
@@ -223,7 +231,8 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
                 }
             }
 
-            @Override public void onChildMoved(@NonNull DataSnapshot snapshot, String previousChildName) { }
+            @Override
+            public void onChildMoved(@NonNull DataSnapshot snapshot, String previousChildName) { }
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
@@ -234,6 +243,69 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
         messagesRef.orderByChild("chatId")
                 .equalTo(currentChatId)
                 .addChildEventListener(messagesListener);
+    }
+
+    // ---------- Typing indicator: listen to others ----------
+    private void setupTypingListener() {
+        typingListener = new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                boolean someoneElseTyping = false;
+
+                for (DataSnapshot child : snapshot.getChildren()) {
+                    String userId = child.getKey();
+                    Boolean isTyping = child.getValue(Boolean.class);
+
+                    if (userId == null || isTyping == null) continue;
+
+                    if (!userId.equals(myId) && isTyping) {
+                        someoneElseTyping = true;
+                        break;
+                    }
+                }
+
+                tvTypingIndicator.setVisibility(
+                        someoneElseTyping ? android.view.View.VISIBLE : android.view.View.GONE
+                );
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) { }
+        };
+
+        typingRef.addValueEventListener(typingListener);
+    }
+
+    // ---------- Typing indicator: publish my typing state ----------
+    private void setupTypingPublisher() {
+        etMessage.addTextChangedListener(new TextWatcher() {
+
+            private void setTyping(boolean typing) {
+                typingRef.child(myId).setValue(typing);
+            }
+
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                boolean isTyping = s != null && s.length() > 0;
+                setTyping(isTyping);
+
+                // Auto turn off typing after 3 seconds of no change
+                if (typingTimeoutRunnable != null) {
+                    typingHandler.removeCallbacks(typingTimeoutRunnable);
+                }
+
+                if (isTyping) {
+                    typingTimeoutRunnable = () -> setTyping(false);
+                    typingHandler.postDelayed(typingTimeoutRunnable, 3000);
+                }
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) { }
+        });
     }
 
     // ---------- Send message ----------
@@ -253,13 +325,15 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
         MessageModal message = new MessageModal(
                 messageId,
                 text,
-                myId,          // senderId = logged in user id (as String)
-                myName,        // senderName = username from user_prefs
+                myId,
+                myName,
                 System.currentTimeMillis(),
                 currentChatId
         );
 
         etMessage.setText("");
+        // stop typing when sending
+        typingRef.child(myId).setValue(false);
 
         messagesRef.child(messageId).setValue(message)
                 .addOnFailureListener(e -> {
@@ -274,6 +348,12 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
         if (messagesRef != null && messagesListener != null) {
             messagesRef.removeEventListener(messagesListener);
         }
+        if (typingRef != null) {
+            typingRef.child(myId).setValue(false); // make sure I’m not “typing” forever
+            if (typingListener != null) {
+                typingRef.removeEventListener(typingListener);
+            }
+        }
     }
 
     @Override
@@ -281,4 +361,5 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
         return myId;
     }
 }
+
 
