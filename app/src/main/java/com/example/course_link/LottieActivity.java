@@ -2,11 +2,14 @@ package com.example.course_link;
 
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 
 import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.airbnb.lottie.LottieAnimationView;
+
 public class LottieActivity extends AppCompatActivity {
     private LottieAnimationView lottieAnimationView;
 
@@ -16,19 +19,15 @@ public class LottieActivity extends AppCompatActivity {
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_lottie);
 
-
-        // Find the LottieAnimationView by ID
         lottieAnimationView = findViewById(R.id.animation_view);
 
-        // Optionally, start the animation programmatically
+        // Start animation
         lottieAnimationView.playAnimation();
 
-        Intent intent = new Intent(LottieActivity.this, MainActivity.class);
-        startActivity(intent);
-
-        // You can also stop the animation, pause, or control playback speed programmatically:
-        // lottieAnimationView.pauseAnimation();
-        // lottieAnimationView.setSpeed(1.5f); // Adjust speed
+        // Delay 2 seconds → go to MainActivity
+        new Handler(Looper.getMainLooper()).postDelayed(() -> {
+            startActivity(new Intent(LottieActivity.this, MainActivity.class));
+            finish(); // close LottieActivity so user can't go back to it
+        }, 2000); // 2000ms = 2 seconds
     }
-
 }

@@ -1,6 +1,9 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.google.gms.google.services)
+    /*id("com.android.application")
+    id("com.google.gms.google-services")
+    id("com.google.gms.google-services") version "4.4.4" apply false*/
 }
 
 android {
@@ -47,12 +50,14 @@ dependencies {
     // Import the Firebase BoM
     // This will manage the versions of all Firebase libraries
     implementation(platform("com.google.firebase:firebase-bom:33.4.0"))
+    implementation(platform("com.google.firebase:firebase-bom:34.6.0"))
 
     // Add Firebase dependencies without specifying their versions
     implementation("com.google.firebase:firebase-auth")
     implementation("com.google.firebase:firebase-database")
     implementation("com.google.firebase:firebase-messaging")
     implementation("com.google.firebase:firebase-storage")
+    implementation("com.google.firebase:firebase-analytics")
 
     // Other libraries
     implementation("com.github.bumptech.glide:glide:4.16.0")
