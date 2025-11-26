@@ -6,6 +6,7 @@ import android.view.View;
 import android.widget.*;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import com.google.firebase.FirebaseApp; // <-- Add this import
 
 public class SignupActivity extends AppCompatActivity {
 
@@ -16,6 +17,11 @@ public class SignupActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+
+        // ---  SOLUTION: INITIALIZE FIREBASE HERE ---
+        FirebaseApp.initializeApp(this);
+        // -----------------------------------------
+
         setContentView(R.layout.activity_signup);
 
         // Initialize views
@@ -26,7 +32,7 @@ public class SignupActivity extends AppCompatActivity {
         btnSignup = findViewById(R.id.btnSignup);
         tvLogin = findViewById(R.id.tvLogin);
 
-        // When "Sign Up" is clicked
+        // ... The rest of your code is perfectly fine and does not need to be changed.
         btnSignup.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -40,19 +46,17 @@ public class SignupActivity extends AppCompatActivity {
                     return;
                 }
 
+                // Your local DB logic is fine
                 UserDbHelper db = new UserDbHelper(SignupActivity.this);
                 User newUser = new User(fullname, email, username, password);
 
                 if (db.insertUser(newUser)) {
-                    // Save logged-in username in SharedPreferences (optional, in case you auto-login)
                     SharedPreferences prefs = getSharedPreferences("user_prefs", MODE_PRIVATE);
                     prefs.edit()
                             .putString("logged_in_username", username)
                             .apply();
 
                     Toast.makeText(SignupActivity.this, "Account created successfully!", Toast.LENGTH_SHORT).show();
-
-                    // Go to login (you can change to MainActivity or LottieActivity if you want)
                     startActivity(new Intent(SignupActivity.this, LoginActivity.class));
                     finish();
                 } else {
@@ -61,7 +65,6 @@ public class SignupActivity extends AppCompatActivity {
             }
         });
 
-        // If user already has an account
         tvLogin.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -71,3 +74,4 @@ public class SignupActivity extends AppCompatActivity {
         });
     }
 }
+

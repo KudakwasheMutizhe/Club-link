@@ -9,7 +9,7 @@ import android.database.Cursor;
 public class UserDbHelper extends SQLiteOpenHelper {
 
     private static final String DATABASE_NAME = "clublink.db";
-    private static final int DATABASE_VERSION = 1;
+    private static final int DATABASE_VERSION = 2;
 
     public static final String TABLE_USERS = "users";
     public static final String COL_ID = "id";
