@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "26114703320",
+    "project_id": "club-link-dde41",
+    "storage_bucket": "club-link-dde41.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:26114703320:android:8f7ae62475e5c8bbf77cad",
+        "android_client_info": {
+          "package_name": "com.example.course_link"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDScuzCYPKYwyMPEsSjuiWnqNUmXKAOxzs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
