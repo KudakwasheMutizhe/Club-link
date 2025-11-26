@@ -94,4 +94,18 @@ public class EventsRepository {
         return list;
     }
 
+    public long insert(Event e) {
+        SQLiteDatabase db = helper.getWritableDatabase();
+        ContentValues cv = new ContentValues();
+        cv.put("title", e.title);
+        cv.put("club", e.club);
+        cv.put("start_epoch", e.startEpochMillis);
+        cv.put("location", e.location);
+        cv.put("category", e.category);
+        cv.put("image_url", e.imageUrl);
+        cv.put("is_bookmarked", e.isBookmarked ? 1 : 0);
+        cv.put("is_going", e.isGoing ? 1 : 0);
+        return db.insert(EventsDbHelper.T_EVENTS, null, cv);
+    }
+
 }

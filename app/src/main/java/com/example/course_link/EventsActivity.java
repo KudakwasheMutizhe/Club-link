@@ -95,9 +95,10 @@ public class EventsActivity extends AppCompatActivity implements EventsAdapter.C
         // --- END: CORRECTED NAVIGATION BLOCK ---
 
         // FAB – hook up to your "Create Event" flow
-        b.fabAdd.setOnClickListener(v ->
-                Toast.makeText(this, "TODO: Add Event", Toast.LENGTH_SHORT).show()
-        );
+        b.fabAdd.setOnClickListener(v -> {
+            Intent i = new Intent(EventsActivity.this, AddEventActivity.class);
+            startActivity(i);
+        });
 
         // Initial data – today
         showForDay(System.currentTimeMillis());
@@ -157,5 +158,17 @@ public class EventsActivity extends AppCompatActivity implements EventsAdapter.C
     @Override
     public void onItemClicked(Event e) {
         Toast.makeText(this, e.title, Toast.LENGTH_SHORT).show();
+    }
+
+    protected void onResume() {
+        super.onResume();
+
+        // Re-query when coming back
+        if (currentQuery == null || currentQuery.isEmpty()) {
+            if (currentDay <= 0) currentDay = System.currentTimeMillis();
+            showForDay(currentDay);
+        } else {
+            searchAndDisplay(currentQuery);
+        }
     }
 }
