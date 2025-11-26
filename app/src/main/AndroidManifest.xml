@@ -24,6 +24,9 @@
             android:name=".DetailActivity"
             android:exported="false" />
         <activity
+            android:name=".UserSearchActivity"
+            android:exported="false" />
+        <activity
             android:name=".profile"
             android:exported="false" />
 

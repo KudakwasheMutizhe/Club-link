@@ -171,6 +171,19 @@ public class UserDbHelper extends SQLiteOpenHelper {
             this.username = username;
             this.fullname = fullname;
         }
+
+
+        public String getUsername() {
+            return username;
+        }
+
+        public long getId() {
+            return id;
+        }
+
+        public String getFullname() {
+            return fullname;
+        }
     }
 
     // Get all users except the given id

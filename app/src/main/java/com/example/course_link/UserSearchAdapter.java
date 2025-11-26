@@ -17,15 +17,37 @@ public class UserSearchAdapter extends RecyclerView.Adapter<UserSearchAdapter.Us
         void onUserClick(UserDbHelper.SimpleUser user);
     }
 
-    private List<UserDbHelper.SimpleUser> users = new ArrayList<>();
+    private final List<UserDbHelper.SimpleUser> fullList = new ArrayList<>();
+    private final List<UserDbHelper.SimpleUser> filteredList = new ArrayList<>();
     private final OnUserClickListener listener;
 
     public UserSearchAdapter(OnUserClickListener listener) {
         this.listener = listener;
     }
 
-    public void setUsers(List<UserDbHelper.SimpleUser> newUsers) {
-        this.users = newUsers;
+    public void setUsers(List<UserDbHelper.SimpleUser> users) {
+        fullList.clear();
+        fullList.addAll(users);
+
+        filteredList.clear();
+        filteredList.addAll(users);
+
+        notifyDataSetChanged();
+    }
+
+    public void filter(String query) {
+        filteredList.clear();
+        if (query == null || query.trim().isEmpty()) {
+            filteredList.addAll(fullList);
+        } else {
+            String q = query.trim().toLowerCase();
+            for (UserDbHelper.SimpleUser u : fullList) {
+                if (u.getUsername().toLowerCase().contains(q)
+                        || u.getFullname().toLowerCase().contains(q)) {
+                    filteredList.add(u);
+                }
+            }
+        }
         notifyDataSetChanged();
     }
 
@@ -39,13 +61,13 @@ public class UserSearchAdapter extends RecyclerView.Adapter<UserSearchAdapter.Us
 
     @Override
     public void onBindViewHolder(@NonNull UserViewHolder holder, int position) {
-        UserDbHelper.SimpleUser user = users.get(position);
+        UserDbHelper.SimpleUser user = filteredList.get(position);
         holder.bind(user, listener);
     }
 
     @Override
     public int getItemCount() {
-        return users.size();
+        return filteredList.size();
     }
 
     static class UserViewHolder extends RecyclerView.ViewHolder {
@@ -59,12 +81,9 @@ public class UserSearchAdapter extends RecyclerView.Adapter<UserSearchAdapter.Us
         }
 
         void bind(UserDbHelper.SimpleUser user, OnUserClickListener listener) {
-            tvUsername.setText(user.username);
-            tvFullname.setText(user.fullname != null ? user.fullname : "");
-
-            itemView.setOnClickListener(v -> {
-                if (listener != null) listener.onUserClick(user);
-            });
+            tvUsername.setText(user.getUsername());
+            tvFullname.setText(user.getFullname());
+            itemView.setOnClickListener(v -> listener.onUserClick(user));
         }
     }
 }
