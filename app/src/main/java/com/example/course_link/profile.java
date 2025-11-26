@@ -4,6 +4,7 @@ import android.app.AlertDialog;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Bundle;
+import android.view.View;
 import android.widget.EditText;
 import android.widget.ImageButton;
 import android.widget.TextView;
@@ -103,9 +104,7 @@ public class profile extends AppCompatActivity {
         // 2. Set the selected item SECOND. This will trigger the listener one time.
         bottomNavigationView.setSelectedItemId(R.id.nav_profile);
 
-        // ---------- Initialize views ----------
-        btnBack = findViewById(R.id.btnBack);
-        btnSettings = findViewById(R.id.btnSettings);
+        // ---------- Initialize views ---------
         ivProfilePic = findViewById(R.id.ivProfilePic);
         btnEditPhoto = findViewById(R.id.btnEditPhoto);
         tvDisplayName = findViewById(R.id.tvDisplayName);
@@ -121,8 +120,6 @@ public class profile extends AppCompatActivity {
     }
 
     private void setupListeners() {
-        // Back button: go back to previous screen (usually MainActivity)
-        btnBack.setOnClickListener(v -> finish());
 
         // Settings button
         btnSettings.setOnClickListener(v ->

@@ -7,16 +7,26 @@ import android.text.TextWatcher;
 import android.widget.EditText;
 import android.widget.Toast;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.ValueEventListener;
 
-import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
+/**
+ * Shows all other users from Firebase so you can start a DM.
+ * Uses /users in Firebase; never shows the logged-in user.
+ */
 public class UserSearchActivity extends AppCompatActivity {
 
     private static final String DB_URL = "https://club-link-default-rtdb.firebaseio.com/";
@@ -28,7 +38,9 @@ public class UserSearchActivity extends AppCompatActivity {
     private SessionManager sessionManager;
     private long currentUserId;
     private String currentUserIdStr;
+    private String currentUsername;
 
+    private DatabaseReference usersRef;
     private DatabaseReference chatsRef;
 
     @Override
@@ -36,14 +48,17 @@ public class UserSearchActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_user_search);
 
+        // Session info
         sessionManager = new SessionManager(this);
         currentUserId = sessionManager.getUserId();
+        currentUserIdStr = String.valueOf(currentUserId);
+        currentUsername = sessionManager.getUsername();
+
         if (currentUserId == -1) {
             startActivity(new Intent(this, LoginActivity.class));
             finish();
             return;
         }
-        currentUserIdStr = String.valueOf(currentUserId);
 
         rvUsers = findViewById(R.id.rvUsers);
         etSearch = findViewById(R.id.etSearch);
@@ -52,12 +67,13 @@ public class UserSearchActivity extends AppCompatActivity {
         rvUsers.setLayoutManager(new LinearLayoutManager(this));
         rvUsers.setAdapter(adapter);
 
-        // Load users from SQLite
-        UserDbHelper dbHelper = new UserDbHelper(this);
-        List<UserDbHelper.SimpleUser> users = dbHelper.getAllUsersExcept(currentUserId);
-        adapter.setUsers(users);
+        FirebaseDatabase db = FirebaseDatabase.getInstance(DB_URL);
+        usersRef = db.getReference("users");
+        chatsRef = db.getReference("chats");
 
-        // Search filter
+        // Load all users from Firebase
+        loadUsersFromFirebase();
+
         etSearch.addTextChangedListener(new TextWatcher() {
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
             @Override public void onTextChanged(CharSequence s, int start, int before, int count) {
@@ -65,40 +81,97 @@ public class UserSearchActivity extends AppCompatActivity {
             }
             @Override public void afterTextChanged(Editable s) {}
         });
-
-        // Firebase
-        FirebaseDatabase database = FirebaseDatabase.getInstance(DB_URL);
-        chatsRef = database.getReference("chats");
     }
 
-    private void openOrCreateChatWith(UserDbHelper.SimpleUser otherUser) {
-        // For now, just create a new chat every time they tap someone
-        String chatName = "Chat with " + otherUser.getUsername();
+    private void loadUsersFromFirebase() {
+        usersRef.addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override public void onDataChange(@NonNull DataSnapshot snapshot) {
+                List<UserDbHelper.SimpleUser> list = new ArrayList<>();
+                Map<Long, UserDbHelper.SimpleUser> unique = new LinkedHashMap<>();
 
-        String chatId = chatsRef.push().getKey();
-        if (chatId == null) {
-            Toast.makeText(this, "Error creating chat", Toast.LENGTH_SHORT).show();
+                for (DataSnapshot child : snapshot.getChildren()) {
+                    AppUserFirebase fbUser = child.getValue(AppUserFirebase.class);
+                    if (fbUser == null) continue;
+
+                    long id = fbUser.id;
+                    String username = fbUser.username != null ? fbUser.username : "";
+                    String fullname = fbUser.fullname != null ? fbUser.fullname : "";
+
+                    boolean isMeById = (id == currentUserId);
+                    boolean isMeByUsername = currentUsername != null
+                            && currentUsername.equalsIgnoreCase(username);
+
+                    // Skip myself
+                    if (!isMeById && !isMeByUsername) {
+                        unique.put(id, new UserDbHelper.SimpleUser(id, username, fullname));
+                    }
+                }
+
+                list.addAll(unique.values());
+                adapter.setUsers(list);
+            }
+
+            @Override public void onCancelled(@NonNull DatabaseError error) {
+                Toast.makeText(UserSearchActivity.this, "Failed to load users", Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
+
+    /**
+     * Open existing DM or create it if it doesn't exist.
+     * One chat per pair of users (no duplicates), no self-chat.
+     */
+    private void openOrCreateChatWith(UserDbHelper.SimpleUser otherUser) {
+        long otherId = otherUser.getId();
+        String otherIdStr = String.valueOf(otherId);
+
+        if (otherId == currentUserId) {
+            Toast.makeText(this, "You can't chat with yourself", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        HashMap<String, Object> chatData = new HashMap<>();
-        HashMap<String, Boolean> participants = new HashMap<>();
-        participants.put(currentUserIdStr, true);
-        participants.put(String.valueOf(otherUser.getId()), true);
+        // Deterministic DM chat id: dmv2_<smallId>_<bigId>
+        String a = currentUserIdStr;
+        String b = otherIdStr;
+        if (a.compareTo(b) > 0) {
+            String tmp = a;
+            a = b;
+            b = tmp;
+        }
+        String chatId = "dmv2_" + a + "_" + b;
+        String defaultChatName = "Chat with " + otherUser.getUsername();
 
-        chatData.put("name", chatName);
-        chatData.put("createdAt", System.currentTimeMillis());
-        chatData.put("participants", participants);
+        DatabaseReference chatRef = chatsRef.child(chatId);
+        chatRef.get().addOnSuccessListener(snapshot -> {
+            String chatNameToUse = defaultChatName;
 
-        chatsRef.child(chatId).setValue(chatData)
-                .addOnSuccessListener(aVoid -> {
-                    Intent intent = new Intent(UserSearchActivity.this, DashboardActivity.class);
-                    intent.putExtra("CHAT_ID", chatId);
-                    intent.putExtra("CHAT_NAME", chatName);
-                    startActivity(intent);
-                    finish();
-                })
-                .addOnFailureListener(e ->
-                        Toast.makeText(this, "Failed to create chat", Toast.LENGTH_SHORT).show());
+            if (snapshot.exists()) {
+                String existingName = snapshot.child("name").getValue(String.class);
+                if (existingName != null) chatNameToUse = existingName;
+            } else {
+                // Create new chat node
+                Map<String, Object> chatData = new LinkedHashMap<>();
+                Map<String, Boolean> participants = new LinkedHashMap<>();
+                participants.put(currentUserIdStr, true);
+                participants.put(otherIdStr, true);
+
+                chatData.put("name", defaultChatName);
+                chatData.put("createdAt", System.currentTimeMillis());
+                chatData.put("participants", participants);
+
+                chatRef.setValue(chatData);
+            }
+
+            openChatScreen(chatId, chatNameToUse);
+        }).addOnFailureListener(e ->
+                Toast.makeText(this, "Error opening chat", Toast.LENGTH_SHORT).show());
+    }
+
+    private void openChatScreen(String chatId, String chatName) {
+        Intent intent = new Intent(UserSearchActivity.this, DashboardActivity.class);
+        intent.putExtra("CHAT_ID", chatId);
+        intent.putExtra("CHAT_NAME", chatName);
+        startActivity(intent);
+        finish();
     }
 }

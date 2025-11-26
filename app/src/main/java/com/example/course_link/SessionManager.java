@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 
 
 public class SessionManager {
+    String username = "";
 
     private static final String PREF_NAME = "club_link_prefs";
     private static final String KEY_USER_ID = "USER_ID";
@@ -35,5 +36,19 @@ public class SessionManager {
      */
     public void clearSession() {
         prefs.edit().clear().apply();
+    }
+
+    public String getUsername() {
+
+        return username;
+    }
+
+    public void setUsername(String username) {
+        this.username = username;
+    }
+
+    public void saveLogin(long userId, String username) {
+        this.saveUserId(userId);
+        this.setUsername(username);
     }
 }
