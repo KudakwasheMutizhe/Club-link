@@ -1,14 +1,12 @@
 package com.example.course_link;
 
-
 import com.google.firebase.database.Exclude;
-
-
 import java.util.HashMap;
 import java.util.Map;
 
 public class AnnouncementModal {
     private String id;
+    private long userId;        // 🔹 NEW: which user this announcement belongs to
     private String title;
     private String message;
     private String authorName;
@@ -18,9 +16,16 @@ public class AnnouncementModal {
     // Default constructor required for Firebase
     public AnnouncementModal() { }
 
-    // Full constructor
-    public AnnouncementModal(String id, String title, String message, String authorName, long createdAt, boolean isRead) {
+    // 🔹 NEW: Full constructor with userId
+    public AnnouncementModal(String id,
+                             long userId,
+                             String title,
+                             String message,
+                             String authorName,
+                             long createdAt,
+                             boolean isRead) {
         this.id = id;
+        this.userId = userId;
         this.title = title;
         this.message = message;
         this.authorName = authorName;
@@ -28,9 +33,24 @@ public class AnnouncementModal {
         this.isRead = isRead;
     }
 
+    // ✅ BACKWARDS-COMPATIBLE constructor (what you already used)
+    // This just calls the new constructor with userId = 0
+    public AnnouncementModal(String id,
+                             String title,
+                             String message,
+                             String authorName,
+                             long createdAt,
+                             boolean isRead) {
+        this(id, 0L, title, message, authorName, createdAt, isRead);
+    }
+
     // Getters (required for Firebase)
     public String getId() {
         return id;
+    }
+
+    public long getUserId() {
+        return userId;
     }
 
     public String getTitle() {
@@ -58,6 +78,10 @@ public class AnnouncementModal {
         this.id = id;
     }
 
+    public void setUserId(long userId) {
+        this.userId = userId;
+    }
+
     public void setTitle(String title) {
         this.title = title;
     }
@@ -83,6 +107,7 @@ public class AnnouncementModal {
     public Map<String, Object> toMap() {
         HashMap<String, Object> result = new HashMap<>();
         result.put("id", id);
+        result.put("userId", userId);     // 🔹 include userId
         result.put("title", title);
         result.put("message", message);
         result.put("authorName", authorName);

@@ -5,7 +5,6 @@ import android.os.Bundle;
 import android.view.View;
 import android.widget.*;
 import android.content.Intent;
-import android.content.SharedPreferences;
 
 public class LoginActivity extends AppCompatActivity {
 
@@ -24,7 +23,6 @@ public class LoginActivity extends AppCompatActivity {
         btnLogin = findViewById(R.id.btnLogin);
         tvSignup = findViewById(R.id.tvSignup);
 
-        // Handle login button
         btnLogin.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -37,16 +35,16 @@ public class LoginActivity extends AppCompatActivity {
                 }
 
                 UserDbHelper db = new UserDbHelper(LoginActivity.this);
-                if (db.checkUser(user, pass)) {
+                long userId = db.loginUser(user, pass);  // <-- use new method
+
+                if (userId != -1) {
                     Toast.makeText(LoginActivity.this, "Login successful!", Toast.LENGTH_SHORT).show();
 
-                    // Save logged-in username to SharedPreferences
-                    SharedPreferences prefs = getSharedPreferences("user_prefs", MODE_PRIVATE);
-                    prefs.edit()
-                            .putString("logged_in_username", user)
-                            .apply();
+                    // Save logged-in USER ID (not just username)
+                    SessionManager sessionManager = new SessionManager(LoginActivity.this);
+                    sessionManager.saveUserId(userId);
 
-                    // Go to your next screen (you already use LottieActivity)
+                    // You can still pass the username to the next screen for display
                     Intent intent = new Intent(LoginActivity.this, LottieActivity.class);
                     intent.putExtra("username", user);
                     startActivity(intent);

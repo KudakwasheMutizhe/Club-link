@@ -37,6 +37,10 @@ public class AddAnnouncementActivity extends AppCompatActivity {
     private Button btnCancel;
     private MaterialButton btnPost;
 
+    // 🔹 NEW: session + current user id
+    private SessionManager sessionManager;
+    private long currentUserId;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -49,6 +53,17 @@ public class AddAnnouncementActivity extends AppCompatActivity {
             v.setPadding(sys.left, sys.top, sys.right, sys.bottom);
             return insets;
         });
+
+        // 🔹 NEW: get current user from SessionManager
+        sessionManager = new SessionManager(this);
+        currentUserId = sessionManager.getUserId();
+
+        // If nobody logged in, send back to Login
+        if (currentUserId == -1) {
+            startActivity(new Intent(this, LoginActivity.class));
+            finish();
+            return;
+        }
 
         // Initialize views
         etTitle = findViewById(R.id.etTitle);
@@ -90,8 +105,15 @@ public class AddAnnouncementActivity extends AppCompatActivity {
             return;
         }
 
+        // 🔴 OLD: global announcements node (everyone mixed together)
+        // DatabaseReference ref = FirebaseDatabase.getInstance(DB_URL)
+        //        .getReference("announcements");
+
+        // 🟢 NEW: scope announcements by user id
+        // Path: /announcements/{userId}/{announcementId}
         DatabaseReference ref = FirebaseDatabase.getInstance(DB_URL)
-                .getReference("announcements");
+                .getReference("announcements")
+                .child(String.valueOf(currentUserId));
 
         String key = ref.push().getKey();
         if (key == null) {
@@ -100,8 +122,17 @@ public class AddAnnouncementActivity extends AppCompatActivity {
         }
 
         long now = System.currentTimeMillis();
-        // Your existing model (keep as-is)
-        AnnouncementModal a = new AnnouncementModal(key, title, message, author, now, false);
+
+        // 🔹 Use the updated AnnouncementModal with userId support
+        AnnouncementModal a = new AnnouncementModal(
+                key,
+                currentUserId,   // tie this announcement to the logged-in account
+                title,
+                message,
+                author,
+                now,
+                false
+        );
 
         // Kick off the write
         ref.child(key).setValue(a)
@@ -109,7 +140,8 @@ public class AddAnnouncementActivity extends AppCompatActivity {
                     if (task.isSuccessful()) {
                         Toast.makeText(this, "Announcement posted!", Toast.LENGTH_SHORT).show();
 
-                        // 🔔 Send FCM notification to everyone subscribed to "announcements"
+                        // 🔔 You can still send a notification; topic can be global or per-user
+                        // For per-user topics you could use "announcements_{currentUserId}"
                         sendNotificationToTopic(title, message, key);
 
                     } else {
@@ -132,6 +164,9 @@ public class AddAnnouncementActivity extends AppCompatActivity {
     /**
      * Sends a push notification to /topics/announcements using FCM HTTP v1 legacy API.
      * NOTE: For production this belongs on a backend or Cloud Function, not inside the app.
+     *
+     * If you want notifications per account only, you can change the topic to something like
+     * "/topics/announcements_{currentUserId}" and subscribe each logged-in user to that topic.
      */
     private void sendNotificationToTopic(String title, String body, String announcementId) {
         new Thread(() -> {
@@ -148,13 +183,17 @@ public class AddAnnouncementActivity extends AppCompatActivity {
 
                 // Build JSON payload
                 JSONObject root = new JSONObject();
+
+                // 🔴 Global topic:
                 root.put("to", "/topics/announcements");
+
+                // 🟢 If you want per-user:
+                // root.put("to", "/topics/announcements_" + currentUserId);
 
                 // Notification payload (what shows in the system tray)
                 JSONObject notification = new JSONObject();
                 notification.put("title", title);
                 notification.put("body", body);
-                // Optional: click_action can be used with custom handling
                 notification.put("click_action", "OPEN_ANNOUNCEMENT_DETAIL");
                 root.put("notification", notification);
 
@@ -172,7 +211,7 @@ public class AddAnnouncementActivity extends AppCompatActivity {
                 os.close();
 
                 int responseCode = conn.getResponseCode();
-                // You can log responseCode or read conn.getInputStream() for debugging if needed.
+                // (optional) log or inspect responseCode here
 
             } catch (Exception e) {
                 e.printStackTrace();

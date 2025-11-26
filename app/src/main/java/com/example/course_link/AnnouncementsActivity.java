@@ -40,6 +40,10 @@ public class AnnouncementsActivity extends AppCompatActivity implements Announce
     private final ArrayList<AnnouncementModal> announcements = new ArrayList<>();
     private static final String DB_URL = "https://club-link-default-rtdb.firebaseio.com/";
 
+    // NEW: session + current user id
+    private SessionManager sessionManager;
+    private long currentUserId;
+
     // Activity result launcher for adding announcements
     private final ActivityResultLauncher<Intent> addAnnouncementLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(),
@@ -73,6 +77,17 @@ public class AnnouncementsActivity extends AppCompatActivity implements Announce
         setContentView(R.layout.activity_announcements);
         justCreatedId = getIntent().getStringExtra("new_id");
 
+        // NEW: get current user from session
+        sessionManager = new SessionManager(this);
+        currentUserId = sessionManager.getUserId();
+
+        // If no user logged in, send back to Login
+        if (currentUserId == -1) {
+            startActivity(new Intent(this, LoginActivity.class));
+            finish();
+            return;
+        }
+
         // Handle system bars padding
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets sys = insets.getInsets(WindowInsetsCompat.Type.systemBars());
@@ -84,9 +99,7 @@ public class AnnouncementsActivity extends AppCompatActivity implements Announce
         BottomNavigationView bottomNavigationView = findViewById(R.id.bottomNavigationView);
         if (bottomNavigationView != null) {
 
-// === START: CORRECTED NAVIGATION BLOCK FOR AnnouncementsActivity.java ===
-
-// This flag prevents the listener from re-navigating when the screen first loads.
+            // This flag prevents the listener from re-navigating when the screen first loads.
             final boolean[] isInitialSelection = {true};
 
             bottomNavigationView.setOnItemSelectedListener(item -> {
@@ -114,10 +127,9 @@ public class AnnouncementsActivity extends AppCompatActivity implements Announce
                     finish();
                     return true;
                 } else if (itemId == R.id.nav_announcements) {
-                    // CORRECTED: Already on the announcements screen, do nothing.
+                    // already here
                     return true;
                 } else if (itemId == R.id.nav_profile) {
-                    // CORRECTED: This should start the profile activity.
                     startActivity(new Intent(AnnouncementsActivity.this, profile.class));
                     finish();
                     return true;
@@ -126,10 +138,7 @@ public class AnnouncementsActivity extends AppCompatActivity implements Announce
                 return false;
             });
 
-// === END: CORRECTED NAVIGATION BLOCK ===
             bottomNavigationView.setSelectedItemId(R.id.nav_announcements);  // highlight Announcements tab
-
-
         }
 
         // ---------- Initialize views ----------
@@ -145,6 +154,8 @@ public class AnnouncementsActivity extends AppCompatActivity implements Announce
         // FAB click listener to add new announcement
         fabAddAnnouncement.setOnClickListener(v -> {
             Intent intent = new Intent(this, AddAnnouncementActivity.class);
+            // optional: pass currentUserId if you want
+            intent.putExtra("user_id", currentUserId);
             addAnnouncementLauncher.launch(intent);
         });
 
@@ -153,10 +164,16 @@ public class AnnouncementsActivity extends AppCompatActivity implements Announce
     }
 
     private void loadAnnouncements() {
-        dbRef = FirebaseDatabase.getInstance(DB_URL)
-                .getReference("announcements");
+        // 🔴 OLD (all users mixed together)
+        // dbRef = FirebaseDatabase.getInstance(DB_URL).getReference("announcements");
 
-        // Listen for all announcements ordered by time (we sort newest first in code)
+        // 🟢 NEW: announcements are stored per user:
+        // /announcements/{userId}/{announcementId}
+        dbRef = FirebaseDatabase.getInstance(DB_URL)
+                .getReference("announcements")
+                .child(String.valueOf(currentUserId));
+
+        // Listen for this user's announcements ordered by time
         dbRef.orderByChild("createdAt").addValueEventListener(new ValueEventListener() {
             @Override public void onDataChange(@NonNull DataSnapshot snapshot) {
                 announcements.clear();

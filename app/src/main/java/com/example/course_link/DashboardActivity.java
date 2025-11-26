@@ -35,11 +35,14 @@ import com.google.firebase.database.FirebaseDatabase;
 
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.UUID;
 
 /**
  * DashboardActivity - Real-time Firebase chat with push notifications.
- * This is used as the Messages screen and includes bottom navigation.
+ * Used as the Messages screen for a single chat.
+ *
+ * Uses:
+ *  - SessionManager → logged-in SQLite user id
+ *  - SharedPreferences("user_prefs") → username (logged_in_username)
  */
 public class DashboardActivity extends AppCompatActivity implements MessageAdapter.MyIdProvider {
 
@@ -65,13 +68,14 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
     private String currentChatId;
     private String currentChatName;
 
-    // Per-device user identity
-    private static final String PREFS_NAME = "club_link_prefs";
-    private static final String KEY_MY_ID = "my_id";
-    private static final String KEY_MY_NAME = "my_name";
+    // Logged-in user identity
+    private SessionManager sessionManager;
+    private long currentUserId;
+    private String myId;    // string version of SQLite user id
+    private String myName;  // username shown in messages
 
-    private String myId;
-    private String myName;
+    private static final String USER_PREFS = "user_prefs";
+    private static final String KEY_LOGGED_IN_USERNAME = "logged_in_username";
 
     // Notification permission launcher
     private final ActivityResultLauncher<String> requestPermissionLauncher =
@@ -87,7 +91,7 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         EdgeToEdge.enable(this);
-        setContentView(R.layout.activity_messages);   // ✅ uses your messages layout
+        setContentView(R.layout.activity_messages);   // uses your messages.xml layout
 
         // Handle system bars padding for root @+id/main
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
@@ -96,29 +100,34 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
             return insets;
         });
 
+        // ---------- Session / logged-in user ----------
+        sessionManager = new SessionManager(this);
+        currentUserId = sessionManager.getUserId();
+
+        if (currentUserId == -1) {
+            // Nobody logged in → back to login
+            startActivity(new Intent(this, LoginActivity.class));
+            finish();
+            return;
+        }
+
+        myId = String.valueOf(currentUserId);
+
+        // Get username from the same prefs you use in LoginActivity / SignupActivity
+        SharedPreferences userPrefs = getSharedPreferences(USER_PREFS, MODE_PRIVATE);
+        myName = userPrefs.getString(KEY_LOGGED_IN_USERNAME, null);
+
+        if (myName == null || myName.trim().isEmpty()) {
+            myName = "User-" + myId;  // fallback
+        }
+
         // ---------- Get chat info from intent ----------
         Intent intent = getIntent();
         currentChatId = intent.getStringExtra("CHAT_ID");
         currentChatName = intent.getStringExtra("CHAT_NAME");
 
-        // Provide safe defaults if nothing was passed
         if (currentChatId == null) currentChatId = "GLOBAL_CHAT";
         if (currentChatName == null) currentChatName = "Messages";
-
-        // ---------- User identity (per device) ----------
-        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
-        myId = prefs.getString(KEY_MY_ID, null);
-        myName = prefs.getString(KEY_MY_NAME, null);
-
-        if (myId == null) {
-            myId = UUID.randomUUID().toString();
-            prefs.edit().putString(KEY_MY_ID, myId).apply();
-        }
-
-        if (myName == null) {
-            myName = "User-" + myId.substring(0, 4);
-            prefs.edit().putString(KEY_MY_NAME, myName).apply();
-        }
 
         Log.d(TAG, "myId = " + myId + ", myName = " + myName);
         Log.d(TAG, "chatId = " + currentChatId + ", chatName = " + currentChatName);
@@ -137,7 +146,7 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
         // Set chat name in header
         tvChatName.setText(currentChatName);
 
-        // Back button: go back to previous screen
+        // Back button: go back to chat list
         btnBack.setOnClickListener(v -> finish());
 
         // ---------- RecyclerView setup ----------
@@ -161,8 +170,9 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
         // Listen for messages in this chat only
         setupFirebaseListener();
 
-        // Ask for notification permission when needed
+        // Notification permission
         requestNotificationPermission();
+
     }
 
     // ---------- Notification permission ----------
@@ -180,7 +190,6 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
     }
 
     private void setupNotifications() {
-        // Assuming you already have NotificationHelper implemented
         NotificationHelper.initNotificationChannel(this);
         NotificationHelper.subscribeToAnnouncements();
     }
@@ -192,7 +201,6 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
             public void onChildAdded(@NonNull DataSnapshot snapshot, String previousChildName) {
                 MessageModal message = snapshot.getValue(MessageModal.class);
                 if (message != null && message.getId() != null) {
-                    // Only show messages from this chat
                     if (currentChatId.equals(message.getChatId())) {
                         if (messageIds.add(message.getId())) {
                             messages.add(message);
@@ -203,8 +211,7 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
                 }
             }
 
-            @Override
-            public void onChildChanged(@NonNull DataSnapshot snapshot, String previousChildName) { }
+            @Override public void onChildChanged(@NonNull DataSnapshot snapshot, String previousChildName) { }
 
             @Override
             public void onChildRemoved(@NonNull DataSnapshot snapshot) {
@@ -216,8 +223,7 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
                 }
             }
 
-            @Override
-            public void onChildMoved(@NonNull DataSnapshot snapshot, String previousChildName) { }
+            @Override public void onChildMoved(@NonNull DataSnapshot snapshot, String previousChildName) { }
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
@@ -225,7 +231,6 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
             }
         };
 
-        // Listen only to messages from this chat
         messagesRef.orderByChild("chatId")
                 .equalTo(currentChatId)
                 .addChildEventListener(messagesListener);
@@ -245,19 +250,17 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
             return;
         }
 
-        // Create message with chatId
         MessageModal message = new MessageModal(
                 messageId,
                 text,
-                myId,
-                myName,
+                myId,          // senderId = logged in user id (as String)
+                myName,        // senderName = username from user_prefs
                 System.currentTimeMillis(),
-                currentChatId  // Include chat ID
+                currentChatId
         );
 
         etMessage.setText("");
 
-        // Send to Firebase
         messagesRef.child(messageId).setValue(message)
                 .addOnFailureListener(e -> {
                     Toast.makeText(DashboardActivity.this, "Failed to send message", Toast.LENGTH_SHORT).show();
@@ -278,3 +281,4 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
         return myId;
     }
 }
+
