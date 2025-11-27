@@ -60,9 +60,19 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:padding="12dp"
-            android:layout_marginBottom="12dp"
+            android:layout_marginBottom="4dp"
             android:background="@drawable/edittext_background"
             android:inputType="textPersonName" />
+
+        <!-- 🔹 Username status (availability + suggestions) -->
+        <TextView
+            android:id="@+id/tvUsernameStatus"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:textSize="12sp"
+            android:textColor="#FF4444"
+            android:layout_marginBottom="12dp"
+            android:visibility="gone" />
 
         <!-- Password -->
         <EditText
@@ -97,3 +107,4 @@
             android:textSize="14sp" />
     </LinearLayout>
 </ScrollView>
+

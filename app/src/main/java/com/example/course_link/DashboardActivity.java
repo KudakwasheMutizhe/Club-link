@@ -2,7 +2,6 @@ package com.example.course_link;
 
 import android.Manifest;
 import android.content.Intent;
-import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
@@ -39,8 +38,7 @@ import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.Locale;
 
 public class DashboardActivity extends AppCompatActivity implements MessageAdapter.MyIdProvider {
 
@@ -77,14 +75,9 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
     // User
     private SessionManager sessionManager;
     private long currentUserId;
-    private String myId;
-    private String myName;
-
-    private static final String PREFS_NAME = "user_prefs";
-    private static final String KEY_USERNAME = "logged_in_username";
-
-    // Background thread
-    private final ExecutorService chatExecutor = Executors.newSingleThreadExecutor();
+    private String currentUsername;
+    private String myId;    // 🔑 identity key used in Firebase (matches ChatList/UserSearch)
+    private String myName;  // display name in messages
 
     // Notification permission launcher
     private final ActivityResultLauncher<String> requestPermissionLauncher =
@@ -102,41 +95,58 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
         EdgeToEdge.enable(this);
         setContentView(R.layout.activity_messages);
 
-        // Insets
+        // Insets for edge-to-edge
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main), (v, insets) -> {
             Insets sys = insets.getInsets(WindowInsetsCompat.Type.systemBars());
             v.setPadding(sys.left, sys.top, sys.right, sys.bottom);
             return insets;
         });
 
-        // Chat info
+        // --------- Chat info from Intent ---------
         Intent intent = getIntent();
         currentChatId = intent.getStringExtra("CHAT_ID");
         currentChatName = intent.getStringExtra("CHAT_NAME");
 
-        if (currentChatId == null) currentChatId = "GLOBAL_CHAT";
-        if (currentChatName == null) currentChatName = "Messages";
+        if (currentChatId == null || currentChatId.trim().isEmpty()) {
+            Log.e(TAG, "CHAT_ID missing in intent – cannot open chat");
+            Toast.makeText(this, "Error: no chat selected", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
 
-        // User
+        if (currentChatName == null || currentChatName.trim().isEmpty()) {
+            currentChatName = "Messages";
+        }
+
+        // --------- User / Session ---------
         sessionManager = new SessionManager(this);
         currentUserId = sessionManager.getUserId();
+        currentUsername = sessionManager.getUsername();
+
         if (currentUserId == -1) {
+            // truly not logged in
             startActivity(new Intent(this, LoginActivity.class));
             finish();
             return;
         }
 
-        myId = String.valueOf(currentUserId);
+        // Build the same identity key we used in ChatListActivity & UserSearchActivity
+        if (currentUsername != null && !currentUsername.trim().isEmpty()) {
+            myId = currentUsername.toLowerCase(Locale.ROOT);
+            myName = currentUsername;
+        } else {
+            myId = "uid_" + currentUserId;         // fallback identity
+            myName = "User-" + currentUserId;      // fallback display name
+        }
 
-        SharedPreferences prefs = getSharedPreferences(PREFS_NAME, MODE_PRIVATE);
-        myName = prefs.getString(KEY_USERNAME, "User-" + myId);
+        Log.d(TAG, "Opening chat " + currentChatId + " as " + myName + " (key=" + myId + ")");
 
-        // Firebase
+        // --------- Firebase refs ---------
         FirebaseDatabase database = FirebaseDatabase.getInstance(DB_URL);
         messagesRef = database.getReference("messages_v2");
         typingRef = database.getReference("typing").child(currentChatId);
 
-        // Views
+        // --------- Views ---------
         recyclerView = findViewById(R.id.rvMessages);
         etMessage = findViewById(R.id.message);
         btnSend = findViewById(R.id.btnSend);
@@ -149,9 +159,11 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
 
         btnBack.setOnClickListener(v -> finish());
 
-        // Recycler + Adapter
+        // --------- Recycler + Adapter ---------
         adapter = new MessageAdapter(this);
-        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        LinearLayoutManager lm = new LinearLayoutManager(this);
+        lm.setStackFromEnd(true); // show newest messages at bottom
+        recyclerView.setLayoutManager(lm);
         recyclerView.setAdapter(adapter);
 
         btnSend.setOnClickListener(v -> sendMessage());
@@ -164,13 +176,15 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
             return false;
         });
 
-        // Typing
+        // --------- Typing indicator ---------
         typingHandler = new Handler(Looper.getMainLooper());
         setupTypingListener();
         setupTypingPublisher();
 
+        // --------- Listen for messages in THIS chat ---------
         setupFirebaseMessagesListener();
 
+        // --------- Notifications ---------
         requestNotificationPermission();
     }
 
@@ -201,46 +215,43 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
 
             @Override
             public void onChildAdded(@NonNull DataSnapshot snapshot, String prev) {
-                chatExecutor.execute(() -> {
-                    MessageModal msg = snapshot.getValue(MessageModal.class);
-                    if (msg == null || msg.getId() == null) return;
+                MessageModal msg = snapshot.getValue(MessageModal.class);
+                if (msg == null || msg.getId() == null) return;
 
-                    if (!currentChatId.equals(msg.getChatId())) return;
+                // ✅ Only messages for THIS chat
+                if (!currentChatId.equals(msg.getChatId())) return;
 
-                    if (messageIds.add(msg.getId())) {
-                        messages.add(msg);
+                // Avoid duplicates
+                if (!messageIds.add(msg.getId())) return;
 
-                        ArrayList<MessageModal> copy = new ArrayList<>(messages);
-                        runOnUiThread(() -> {
-                            adapter.submitList(copy);
-                            recyclerView.scrollToPosition(copy.size() - 1);
-                        });
-                    }
-                });
+                messages.add(msg);
+
+                ArrayList<MessageModal> copy = new ArrayList<>(messages);
+                adapter.submitList(copy);
+                recyclerView.scrollToPosition(copy.size() - 1);
             }
 
-            @Override public void onChildChanged(@NonNull DataSnapshot snapshot, String prev) {}
-            @Override public void onChildMoved(@NonNull DataSnapshot snapshot, String prev) {}
+            @Override public void onChildChanged(@NonNull DataSnapshot snapshot, String prev) { }
+
+            @Override public void onChildMoved(@NonNull DataSnapshot snapshot, String prev) { }
 
             @Override
             public void onChildRemoved(@NonNull DataSnapshot snapshot) {
-                chatExecutor.execute(() -> {
-                    MessageModal msg = snapshot.getValue(MessageModal.class);
-                    if (msg == null || msg.getId() == null) return;
+                MessageModal msg = snapshot.getValue(MessageModal.class);
+                if (msg == null || msg.getId() == null) return;
 
-                    messageIds.remove(msg.getId());
-                    messages.removeIf(m -> m.getId().equals(msg.getId()));
+                messageIds.remove(msg.getId());
+                messages.removeIf(m -> m.getId().equals(msg.getId()));
 
-                    ArrayList<MessageModal> copy = new ArrayList<>(messages);
-                    runOnUiThread(() -> adapter.submitList(copy));
-                });
+                ArrayList<MessageModal> copy = new ArrayList<>(messages);
+                adapter.submitList(copy);
             }
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
-                runOnUiThread(() ->
-                        Toast.makeText(DashboardActivity.this, "Failed to load messages", Toast.LENGTH_SHORT).show()
-                );
+                Toast.makeText(DashboardActivity.this,
+                        "Failed to load messages", Toast.LENGTH_SHORT).show();
+                Log.e(TAG, "Messages listener cancelled: " + error.getMessage());
             }
         };
 
@@ -261,7 +272,7 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
                     String uid = child.getKey();
                     Boolean typing = child.getValue(Boolean.class);
 
-                    if (uid != null && typing != null && !uid.equals(myId) && typing) {
+                    if (uid != null && typing != null && typing && !uid.equals(myId)) {
                         someoneTyping = true;
                         break;
                     }
@@ -272,7 +283,7 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
                 );
             }
 
-            @Override public void onCancelled(@NonNull DatabaseError error) {}
+            @Override public void onCancelled(@NonNull DatabaseError error) { }
         };
 
         typingRef.addValueEventListener(typingListener);
@@ -285,7 +296,7 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
                 typingRef.child(myId).setValue(typing);
             }
 
-            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
 
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
@@ -302,7 +313,7 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
                 }
             }
 
-            @Override public void afterTextChanged(Editable s) {}
+            @Override public void afterTextChanged(Editable s) { }
         });
     }
 
@@ -321,11 +332,13 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
             return;
         }
 
+        // Make sure this matches your MessageModal constructor
+        // (id, text, senderId, senderName, createdAt, chatId)
         MessageModal msg = new MessageModal(
                 id,
                 text,
-                myId,
-                myName,
+                myId,     // 🔑 identity key (username or uid_X)
+                myName,   // display name
                 System.currentTimeMillis(),
                 currentChatId
         );
@@ -352,7 +365,9 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
             typingRef.removeEventListener(typingListener);
         }
 
-        chatExecutor.shutdown();
+        if (typingHandler != null && typingTimeoutRunnable != null) {
+            typingHandler.removeCallbacks(typingTimeoutRunnable);
+        }
     }
 
     @Override
