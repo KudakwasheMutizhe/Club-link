@@ -108,12 +108,13 @@ public class UserDbHelper extends SQLiteOpenHelper {
     }
 
     // 🔹 NEW: Get a user by database id (for ProfileActivity screen)
+    // Get a user by ID (for profile screen)
     public User getUserById(long id) {
         SQLiteDatabase db = this.getReadableDatabase();
 
         Cursor cursor = db.query(
                 TABLE_USERS,
-                new String[]{COL_ID, COL_FULLNAME, COL_EMAIL, COL_USERNAME, COL_PASSWORD},
+                new String[]{COL_FULLNAME, COL_EMAIL, COL_USERNAME, COL_PASSWORD},
                 COL_ID + " = ?",
                 new String[]{String.valueOf(id)},
                 null, null, null
@@ -123,16 +124,17 @@ public class UserDbHelper extends SQLiteOpenHelper {
         if (cursor != null && cursor.moveToFirst()) {
             String fullname = cursor.getString(cursor.getColumnIndexOrThrow(COL_FULLNAME));
             String email = cursor.getString(cursor.getColumnIndexOrThrow(COL_EMAIL));
-            String username = cursor.getString(cursor.getColumnIndexOrThrow(COL_USERNAME));
+            String uname = cursor.getString(cursor.getColumnIndexOrThrow(COL_USERNAME));
             String pwd = cursor.getString(cursor.getColumnIndexOrThrow(COL_PASSWORD));
 
-            user = new User(fullname, email, username, pwd);
+            user = new User(fullname, email, uname, pwd);
         }
 
         if (cursor != null) cursor.close();
         db.close();
         return user;
     }
+
 
     // Update password for a given username
     public boolean updatePassword(String username, String newPassword) {

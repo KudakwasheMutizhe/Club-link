@@ -26,6 +26,8 @@ import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.IntStream;
 
 public class AnnouncementsActivity extends AppCompatActivity implements AnnouncementAdapter.OnAnnouncementClickListener {
@@ -40,9 +42,12 @@ public class AnnouncementsActivity extends AppCompatActivity implements Announce
     private final ArrayList<AnnouncementModal> announcements = new ArrayList<>();
     private static final String DB_URL = "https://club-link-default-rtdb.firebaseio.com/";
 
-    // NEW: session + current user id
+    // Session + current user id
     private SessionManager sessionManager;
     private long currentUserId;
+
+    // Background executor for announcement list work
+    private final ExecutorService announcementsExecutor = Executors.newSingleThreadExecutor();
 
     // Activity result launcher for adding announcements
     private final ActivityResultLauncher<Intent> addAnnouncementLauncher = registerForActivityResult(
@@ -61,11 +66,11 @@ public class AnnouncementsActivity extends AppCompatActivity implements Announce
                             data.getBooleanExtra("announcement_is_read", false)
                     );
 
-                    // Add to the beginning of the list (newest first)
-                    announcements.add(0, newAnnouncement);
-
-                    // Update UI
-                    updateAnnouncementsList();
+                    // Add on background thread, then refresh UI on main
+                    announcementsExecutor.execute(() -> {
+                        announcements.add(0, newAnnouncement);
+                        runOnUiThread(this::updateAnnouncementsList);
+                    });
                 }
             }
     );
@@ -77,7 +82,7 @@ public class AnnouncementsActivity extends AppCompatActivity implements Announce
         setContentView(R.layout.activity_announcements);
         justCreatedId = getIntent().getStringExtra("new_id");
 
-        // NEW: get current user from session
+        // Get current user from session
         sessionManager = new SessionManager(this);
         currentUserId = sessionManager.getUserId();
 
@@ -164,49 +169,60 @@ public class AnnouncementsActivity extends AppCompatActivity implements Announce
     }
 
     private void loadAnnouncements() {
-        // 🔴 OLD (all users mixed together)
-        // dbRef = FirebaseDatabase.getInstance(DB_URL).getReference("announcements");
-
-        // 🟢 NEW: announcements are stored per user:
-        // /announcements/{userId}/{announcementId}
+        // per-user announcements: /announcements/{userId}/{announcementId}
         dbRef = FirebaseDatabase.getInstance(DB_URL)
                 .getReference("announcements")
                 .child(String.valueOf(currentUserId));
 
         // Listen for this user's announcements ordered by time
         dbRef.orderByChild("createdAt").addValueEventListener(new ValueEventListener() {
-            @Override public void onDataChange(@NonNull DataSnapshot snapshot) {
-                announcements.clear();
-                for (DataSnapshot child : snapshot.getChildren()) {
-                    AnnouncementModal a = child.getValue(AnnouncementModal.class);
-                    if (a != null) announcements.add(a);
-                }
-
-                // newest first
-                announcements.sort((a, b) -> Long.compare(b.getCreatedAt(), a.getCreatedAt()));
-                updateAnnouncementsList();
-
-                // If we just created one, scroll to it and open detail once
-                if (justCreatedId != null) {
-                    int index = IntStream.range(0, announcements.size())
-                            .filter(i -> justCreatedId.equals(announcements.get(i).getId()))
-                            .findFirst()
-                            .orElse(-1);
-
-                    if (index >= 0) {
-                        recyclerView.scrollToPosition(index);
-                        recyclerView.postDelayed(() -> {
-                            onAnnouncementClick(announcements.get(index));
-                        }, 600); // small delay before opening detail
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                announcementsExecutor.execute(() -> {
+                    announcements.clear();
+                    for (DataSnapshot child : snapshot.getChildren()) {
+                        AnnouncementModal a = child.getValue(AnnouncementModal.class);
+                        if (a != null) announcements.add(a);
                     }
+
+                    // newest first
+                    announcements.sort((a, b) -> Long.compare(b.getCreatedAt(), a.getCreatedAt()));
+
+                    // capture and reset justCreatedId safely for this UI run
+                    String createdId = justCreatedId;
                     justCreatedId = null;
-                }
+
+                    runOnUiThread(() -> refreshUiAfterLoad(createdId));
+                });
             }
 
-            @Override public void onCancelled(@NonNull DatabaseError error) {
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
                 // Optional: show a toast here
             }
         });
+    }
+
+    /**
+     * Runs on main thread after announcements list has been updated in background.
+     */
+    private void refreshUiAfterLoad(String createdId) {
+        updateAnnouncementsList();
+
+        // If we just created one, scroll to it and open detail once
+        if (createdId != null && !announcements.isEmpty()) {
+            int index = IntStream.range(0, announcements.size())
+                    .filter(i -> createdId.equals(announcements.get(i).getId()))
+                    .findFirst()
+                    .orElse(-1);
+
+            if (index >= 0) {
+                recyclerView.scrollToPosition(index);
+                recyclerView.postDelayed(() -> {
+                    onAnnouncementClick(announcements.get(index));
+                }, 600); // small delay before opening detail
+            }
+        }
     }
 
     private void updateAnnouncementsList() {
@@ -255,7 +271,7 @@ public class AnnouncementsActivity extends AppCompatActivity implements Announce
 
     @Override
     public void onAnnouncementClick(AnnouncementModal announcement) {
-        // Mark as read in memory
+        // Mark as read in memory (on main thread, safe)
         announcement.setRead(true);
 
         // Refresh the list to update UI
@@ -269,5 +285,11 @@ public class AnnouncementsActivity extends AppCompatActivity implements Announce
         intent.putExtra("announcement_author", announcement.getAuthorName());
         intent.putExtra("announcement_date", announcement.getCreatedAt());
         startActivity(intent);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        announcementsExecutor.shutdown();
     }
 }

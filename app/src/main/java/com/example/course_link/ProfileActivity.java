@@ -19,10 +19,12 @@ import androidx.core.view.WindowInsetsCompat;
 
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+
 import de.hdodenhof.circleimageview.CircleImageView;
 
 public class ProfileActivity extends AppCompatActivity {
-
 
     private CircleImageView ivProfilePic;
     private ImageButton btnEditPhoto;
@@ -31,13 +33,21 @@ public class ProfileActivity extends AppCompatActivity {
     private TextView tvBio;
     private TextView tvCampus;
 
-    // Activity result launcher for edit ProfileActivity
+    // Helpers
+    private SessionManager sessionManager;
+    private UserDbHelper dbHelper;
+    private User currentUser;
+
+    // Single background thread for DB work
+    private final ExecutorService dbExecutor = Executors.newSingleThreadExecutor();
+
+    // Activity result launcher for EditProfileActivity
     private final ActivityResultLauncher<Intent> editProfileLauncher =
             registerForActivityResult(
                     new ActivityResultContracts.StartActivityForResult(),
                     result -> {
                         if (result.getResultCode() == RESULT_OK) {
-                            // Reload ProfileActivity data when coming back from EditProfileActivity
+                            // Reload Profile data when coming back from EditProfileActivity
                             loadUserProfile();
                         }
                     }
@@ -56,18 +66,18 @@ public class ProfileActivity extends AppCompatActivity {
             return insets;
         });
 
+        sessionManager = new SessionManager(this);
+        dbHelper = new UserDbHelper(this);
+
         // ---------- Bottom Navigation ----------
         BottomNavigationView bottomNavigationView = findViewById(R.id.bottomNavigationView);
 
-        // This flag prevents the listener from re-navigating when the screen first loads.
         final boolean[] isInitialSelection = {true};
 
-        // 1. Set the listener FIRST
         bottomNavigationView.setOnItemSelectedListener(item -> {
-            // If this is the first selection event (on screen load), ignore it.
             if (isInitialSelection[0]) {
-                isInitialSelection[0] = false; // Mark as handled
-                return true; // Consume the event, but do nothing.
+                isInitialSelection[0] = false;
+                return true;
             }
 
             int itemId = item.getItemId();
@@ -92,17 +102,16 @@ public class ProfileActivity extends AppCompatActivity {
                 finish();
                 return true;
             } else if (itemId == R.id.nav_profile) {
-                // Already on the ProfileActivity screen, do nothing.
+                // Already here
                 return true;
             }
 
             return false;
         });
 
-        // 2. Set the selected item SECOND. This will trigger the listener one time.
         bottomNavigationView.setSelectedItemId(R.id.nav_profile);
 
-        // ---------- Initialize views ---------
+        // ---------- Initialize views ----------
         ivProfilePic = findViewById(R.id.ivProfilePic);
         btnEditPhoto = findViewById(R.id.btnEditPhoto);
         tvDisplayName = findViewById(R.id.tvDisplayName);
@@ -113,22 +122,36 @@ public class ProfileActivity extends AppCompatActivity {
         // ---------- Listeners ----------
         setupListeners();
 
-        // ---------- Load ProfileActivity data from SQLite ----------
+        // ---------- Load Profile data ----------
         loadUserProfile();
     }
 
+    @Override
+    protected void onResume() {
+        super.onResume();
+        // Refresh profile when returning to this screen
+        loadUserProfile();
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        dbExecutor.shutdown();
+    }
+
     private void setupListeners() {
-
-        // Settings button
-
-
         // Edit photo button
         btnEditPhoto.setOnClickListener(v ->
                 Toast.makeText(this, "Photo upload coming soon", Toast.LENGTH_SHORT).show()
         );
 
-        // Edit ProfileActivity button (still launches your EditProfileActivity if you use it)
+        // Edit Profile button
         findViewById(R.id.btnEditProfile).setOnClickListener(v -> {
+            if (currentUser == null) {
+                Toast.makeText(this, "No user loaded", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
             Intent intent = new Intent(this, EditProfileActivity.class);
             intent.putExtra("displayName", tvDisplayName.getText().toString());
             intent.putExtra("bio", tvBio.getText().toString());
@@ -136,7 +159,7 @@ public class ProfileActivity extends AppCompatActivity {
             editProfileLauncher.launch(intent);
         });
 
-        // Change password button (now uses SQLite)
+        // Change password button
         findViewById(R.id.btnChangePassword).setOnClickListener(v -> showChangePasswordDialog());
 
         // Logout button
@@ -147,70 +170,83 @@ public class ProfileActivity extends AppCompatActivity {
     }
 
     /**
-     * Load user ProfileActivity from SQLite using the username saved in SharedPreferences.
+     * Load user profile using SessionManager + SQLite on a background thread.
+     * Also applies per-user displayName/bio/campus from SharedPreferences.
      */
     private void loadUserProfile() {
-        SharedPreferences prefs = getSharedPreferences("user_prefs", MODE_PRIVATE);
-        String username = prefs.getString("logged_in_username", null);
+        long userId = sessionManager.getUserId();
+        String usernameFromSession = sessionManager.getUsername();
 
-        if (username == null) {
-            // No logged-in user – show default guest data
+        dbExecutor.execute(() -> {
+            User user = null;
+
+            // Try to get user by ID first (more reliable)
+            if (userId != -1) {
+                user = dbHelper.getUserById(userId);
+            }
+
+            // Fallback: if ID failed but we have a username
+            if (user == null && usernameFromSession != null) {
+                user = dbHelper.getUserByUsername(usernameFromSession);
+            }
+
+            User finalUser = user;
+            runOnUiThread(() -> applyUserToUi(finalUser));
+        });
+    }
+
+    /**
+     * UI-only method: updates views with a User object, or guest state.
+     */
+    private void applyUserToUi(User user) {
+        if (user == null) {
             tvEmail.setText("Not logged in");
             tvDisplayName.setText("Guest");
             tvBio.setText("No bio yet");
             tvCampus.setText("Main Campus");
+            currentUser = null;
             return;
         }
 
-        UserDbHelper dbHelper = new UserDbHelper(this);
-        User user = dbHelper.getUserByUsername(username);
+        currentUser = user;
+        String username = user.getUsername();
 
-        if (user != null) {
-            // Email from SQLite
-            tvEmail.setText(user.getEmail());
+        // ---- Core info from SQLite ----
+        tvEmail.setText(user.getEmail());
 
-            // ✅ Display name: prefer updated one from SharedPreferences, fallback to SQLite fullname
-            String displayNameKey = "displayName_" + username;
-            String displayNamePref = prefs.getString(displayNameKey, null);
+        // ---- Per-user profile preferences (displayName, bio, campus) ----
+        SharedPreferences prefs = getSharedPreferences("user_prefs", MODE_PRIVATE);
 
-            if (displayNamePref != null && !displayNamePref.isEmpty()) {
-                tvDisplayName.setText(displayNamePref);
-            } else {
-                tvDisplayName.setText(user.getFullname());
-            }
-
-            // Bio & campus from SharedPreferences (with defaults)
-            String bioKey = "bio_" + username;
-            String campusKey = "campus_" + username;
-
-            String bio = prefs.getString(bioKey, "No bio yet");
-            String campus = prefs.getString(campusKey, "Main Campus");
-
-            tvBio.setText(bio);
-            tvCampus.setText(campus);
+        // Display name: first try stored override, else use fullname from DB
+        String displayNameKey = "displayName_" + username;
+        String displayNamePref = prefs.getString(displayNameKey, null);
+        if (displayNamePref != null && !displayNamePref.isEmpty()) {
+            tvDisplayName.setText(displayNamePref);
         } else {
-            // If something went wrong / user missing
-            tvEmail.setText("Not logged in");
-            tvDisplayName.setText("Guest");
-            tvBio.setText("No bio yet");
-            tvCampus.setText("Main Campus");
+            tvDisplayName.setText(user.getFullname());
         }
+
+        // Bio & campus from SharedPreferences (with defaults)
+        String bioKey = "bio_" + username;
+        String campusKey = "campus_" + username;
+
+        String bio = prefs.getString(bioKey, "No bio yet");
+        String campus = prefs.getString(campusKey, "Main Campus");
+
+        tvBio.setText(bio);
+        tvCampus.setText(campus);
     }
 
-
     /**
-     * Show dialog to change password (SQLite version).
+     * Show dialog to change password (SQLite version), updating in background.
      */
     private void showChangePasswordDialog() {
-        SharedPreferences prefs = getSharedPreferences("user_prefs", MODE_PRIVATE);
-        String username = prefs.getString("logged_in_username", null);
-
-        if (username == null) {
+        long userId = sessionManager.getUserId();
+        if (userId == -1 || currentUser == null) {
             Toast.makeText(this, "You must be logged in to change password", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // Input for new password
         final EditText input = new EditText(this);
         input.setHint("New password");
 
@@ -225,34 +261,37 @@ public class ProfileActivity extends AppCompatActivity {
                         return;
                     }
 
-                    UserDbHelper dbHelper = new UserDbHelper(this);
-                    boolean success = dbHelper.updatePassword(username, newPassword);
-                    if (success) {
-                        Toast.makeText(this, "Password updated successfully", Toast.LENGTH_SHORT).show();
-                    } else {
-                        Toast.makeText(this, "Failed to update password", Toast.LENGTH_SHORT).show();
-                    }
+                    // Run DB update in background
+                    dbExecutor.execute(() -> {
+                        boolean success = dbHelper.updatePassword(currentUser.getUsername(), newPassword);
+                        runOnUiThread(() -> {
+                            if (success) {
+                                Toast.makeText(this, "Password updated successfully", Toast.LENGTH_SHORT).show();
+                            } else {
+                                Toast.makeText(this, "Failed to update password", Toast.LENGTH_SHORT).show();
+                            }
+                        });
+                    });
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
     }
 
     /**
-     * Show logout confirmation dialog. Clears SharedPreferences.
+     * Show logout confirmation dialog. Clears SessionManager.
      */
     private void showLogoutDialog() {
         new AlertDialog.Builder(this)
                 .setTitle("Logout")
                 .setMessage("Are you sure you want to logout?")
                 .setPositiveButton("Logout", (dialog, which) -> {
-                    // Clear logged-in username
-                    SharedPreferences prefs = getSharedPreferences("user_prefs", MODE_PRIVATE);
-                    prefs.edit().remove("logged_in_username").apply();
+                    // Clear session
+                    sessionManager.clearSession();
 
                     Toast.makeText(this, "Logged out successfully", Toast.LENGTH_SHORT).show();
 
-                    // Optionally go to LoginActivity or a welcome screen
                     Intent intent = new Intent(ProfileActivity.this, LoginActivity.class);
+                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
                     startActivity(intent);
                     finish();
                 })
@@ -261,13 +300,10 @@ public class ProfileActivity extends AppCompatActivity {
     }
 
     /**
-     * Show dialog to delete account from SQLite.
+     * Show dialog to delete account from SQLite (deletes in background).
      */
     private void showDeleteAccountDialog() {
-        SharedPreferences prefs = getSharedPreferences("user_prefs", MODE_PRIVATE);
-        String username = prefs.getString("logged_in_username", null);
-
-        if (username == null) {
+        if (currentUser == null) {
             Toast.makeText(this, "You must be logged in to delete your account", Toast.LENGTH_SHORT).show();
             return;
         }
@@ -276,7 +312,6 @@ public class ProfileActivity extends AppCompatActivity {
                 .setTitle("Delete Account")
                 .setMessage("Are you sure you want to permanently delete your account? This action cannot be undone.")
                 .setPositiveButton("Continue", (dialog, which) -> {
-                    // Second confirmation with "DELETE" text
                     final EditText input = new EditText(this);
                     input.setHint("Type DELETE to confirm");
 
@@ -291,21 +326,24 @@ public class ProfileActivity extends AppCompatActivity {
                                     return;
                                 }
 
-                                UserDbHelper dbHelper = new UserDbHelper(this);
-                                boolean success = dbHelper.deleteUser(username);
+                                // DB delete on background thread
+                                dbExecutor.execute(() -> {
+                                    boolean success = dbHelper.deleteUser(currentUser.getUsername());
 
-                                if (success) {
-                                    // Clear session
-                                    prefs.edit().remove("logged_in_username").apply();
-                                    Toast.makeText(this, "Account deleted successfully", Toast.LENGTH_SHORT).show();
+                                    runOnUiThread(() -> {
+                                        if (success) {
+                                            sessionManager.clearSession();
+                                            Toast.makeText(this, "Account deleted successfully", Toast.LENGTH_SHORT).show();
 
-                                    // Go back to login or welcome
-                                    Intent intent = new Intent(ProfileActivity.this, LoginActivity.class);
-                                    startActivity(intent);
-                                    finish();
-                                } else {
-                                    Toast.makeText(this, "Failed to delete account", Toast.LENGTH_LONG).show();
-                                }
+                                            Intent intent = new Intent(ProfileActivity.this, LoginActivity.class);
+                                            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                                            startActivity(intent);
+                                            finish();
+                                        } else {
+                                            Toast.makeText(this, "Failed to delete account", Toast.LENGTH_LONG).show();
+                                        }
+                                    });
+                                });
                             })
                             .setNegativeButton("Cancel", null)
                             .show();

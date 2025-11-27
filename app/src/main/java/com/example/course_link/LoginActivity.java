@@ -1,6 +1,8 @@
 package com.example.course_link;
 
 import androidx.appcompat.app.AppCompatActivity;
+
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.View;
 import android.widget.*;
@@ -35,25 +37,34 @@ public class LoginActivity extends AppCompatActivity {
                 }
 
                 UserDbHelper db = new UserDbHelper(LoginActivity.this);
-                long userId = db.loginUser(user, pass);  // <-- use new method
+
+                // 🔹 Use loginUser to get the id
+                long userId = db.loginUser(user, pass);
 
                 if (userId != -1) {
                     Toast.makeText(LoginActivity.this, "Login successful!", Toast.LENGTH_SHORT).show();
 
-                    // Save logged-in USER ID (not just username)
+                    // 🔹 Save to SessionManager (this is what profile will use)
                     SessionManager sessionManager = new SessionManager(LoginActivity.this);
-                    sessionManager.saveUserId(userId);
+                    sessionManager.saveLogin(userId, user);
 
-                    // You can still pass the username to the next screen for display
+                    // (Optional) keep your old prefs if something else is using it
+                    SharedPreferences prefs = getSharedPreferences("user_prefs", MODE_PRIVATE);
+                    prefs.edit()
+                            .putString("logged_in_username", user)
+                            .apply();
+
+                    // Go to your next screen
                     Intent intent = new Intent(LoginActivity.this, LottieActivity.class);
                     intent.putExtra("username", user);
                     startActivity(intent);
-                    // finish(); // optional if you don't want to come back to login
+                    // finish();  // up to you
                 } else {
                     Toast.makeText(LoginActivity.this, "Invalid username or password", Toast.LENGTH_SHORT).show();
                 }
             }
         });
+
 
         // Navigate to sign-up
         tvSignup.setOnClickListener(new View.OnClickListener() {
@@ -64,4 +75,5 @@ public class LoginActivity extends AppCompatActivity {
         });
     }
 }
+
 

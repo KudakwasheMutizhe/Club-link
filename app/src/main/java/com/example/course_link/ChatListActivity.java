@@ -40,7 +40,7 @@ public class ChatListActivity extends AppCompatActivity {
 
     private DatabaseReference chatsRef;
     private DatabaseReference messagesRef;
-    private DatabaseReference usersRef;     // 🔹 NEW: /users in Firebase
+    private DatabaseReference usersRef;    
 
     // Session / user info
     private SessionManager sessionManager;
