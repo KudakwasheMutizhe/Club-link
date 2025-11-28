@@ -5,6 +5,8 @@ import androidx.appcompat.app.AppCompatActivity;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -23,7 +25,10 @@ public class SignupActivity extends AppCompatActivity {
     EditText etFullname, etEmail, etUsername, etPassword;
     Button btnSignup;
     TextView tvLogin;
-    TextView tvUsernameStatus;   // 🔹 status under username
+    TextView tvUsernameStatus;   // status under username
+
+    // 🔹 Password requirement views
+    TextView tvReqLength, tvReqUpperLower, tvReqDigit, tvReqSpecial, tvReqNoSpace;
 
     private static final String DB_URL = "https://club-link-default-rtdb.firebaseio.com/";
 
@@ -45,11 +50,30 @@ public class SignupActivity extends AppCompatActivity {
         tvLogin = findViewById(R.id.tvLogin);
         tvUsernameStatus = findViewById(R.id.tvUsernameStatus);
 
+        // 🔹 Find password requirement TextViews
+        tvReqLength = findViewById(R.id.tvReqLength);
+        tvReqUpperLower = findViewById(R.id.tvReqUpperLower);
+        tvReqDigit = findViewById(R.id.tvReqDigit);
+        tvReqSpecial = findViewById(R.id.tvReqSpecial);
+        tvReqNoSpace = findViewById(R.id.tvReqNoSpace);
+
         FirebaseDatabase db = FirebaseDatabase.getInstance(DB_URL);
         usersRef = db.getReference("users"); // we’ll key this by username.toLowerCase()
 
         // 🔹 Live username availability check
         setupUsernameWatcher();
+
+        // 🔹 Live password strength indicator
+        etPassword.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                updatePasswordRequirements(s.toString());
+            }
+
+            @Override public void afterTextChanged(Editable s) { }
+        });
 
         btnSignup.setOnClickListener(view -> attemptSignup());
 
@@ -125,6 +149,57 @@ public class SignupActivity extends AppCompatActivity {
         });
     }
 
+    private boolean isValidEmail(String email) {
+        return !android.text.TextUtils.isEmpty(email) &&
+                android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches();
+    }
+
+    private boolean isStrongPassword(String password) {
+        if (password == null || password.length() < 8) return false;
+
+        boolean hasUpper = false;
+        boolean hasLower = false;
+        boolean hasDigit = false;
+        boolean hasSymbol = false;
+
+        for (char c : password.toCharArray()) {
+            if (Character.isUpperCase(c)) hasUpper = true;
+            else if (Character.isLowerCase(c)) hasLower = true;
+            else if (Character.isDigit(c)) hasDigit = true;
+            else if (!Character.isWhitespace(c)) hasSymbol = true;
+            else if (Character.isWhitespace(c)) {
+                return false; // no spaces
+            }
+        }
+
+        return hasUpper && hasLower && hasDigit && hasSymbol;
+    }
+
+    // 🔹 Update requirement colors as user types
+    private void updatePasswordRequirements(String pwd) {
+        // default colors: red = fail, green = pass
+        int red = 0xFFAA0000;
+        int green = 0xFF00C853;
+
+        // Length
+        tvReqLength.setTextColor(pwd.length() >= 8 ? green : red);
+
+        boolean hasUpper = false, hasLower = false, hasDigit = false, hasSymbol = false, hasSpace = false;
+
+        for (char c : pwd.toCharArray()) {
+            if (Character.isUpperCase(c)) hasUpper = true;
+            else if (Character.isLowerCase(c)) hasLower = true;
+            else if (Character.isDigit(c)) hasDigit = true;
+            else if (Character.isWhitespace(c)) hasSpace = true;
+            else hasSymbol = true;
+        }
+
+        tvReqUpperLower.setTextColor((hasUpper && hasLower) ? green : red);
+        tvReqDigit.setTextColor(hasDigit ? green : red);
+        tvReqSpecial.setTextColor(hasSymbol ? green : red);
+        tvReqNoSpace.setTextColor(!hasSpace ? green : red);
+    }
+
     private String buildSuggestions(String base) {
         Random rnd = new Random();
         String s1 = base + (rnd.nextInt(90) + 10);         // base + 2-digit number
@@ -141,8 +216,39 @@ public class SignupActivity extends AppCompatActivity {
         String username = etUsername.getText().toString().trim();
         String password = etPassword.getText().toString().trim();
 
-        if (fullname.isEmpty() || email.isEmpty() || username.isEmpty() || password.isEmpty()) {
-            Toast.makeText(SignupActivity.this, "Please fill all fields", Toast.LENGTH_SHORT).show();
+        boolean hasError = false;
+
+        if (fullname.isEmpty()) {
+            etFullname.setError("Full name is required");
+            hasError = true;
+        }
+
+        if (email.isEmpty()) {
+            etEmail.setError("Email is required");
+            hasError = true;
+        } else if (!isValidEmail(email)) {
+            etEmail.setError("Enter a valid email");
+            hasError = true;
+        }
+
+        if (username.isEmpty()) {
+            etUsername.setError("Username is required");
+            hasError = true;
+        }
+
+        if (password.isEmpty()) {
+            etPassword.setError("Password is required");
+            hasError = true;
+        } else if (!isStrongPassword(password)) {
+            etPassword.setError("Password must meet security requirements");
+            Toast.makeText(this,
+                    "Password must be at least 8 characters with upper, lower, digit, special, and no spaces.",
+                    Toast.LENGTH_LONG).show();
+            hasError = true;
+        }
+
+        if (hasError) {
+            Toast.makeText(this, "Please fix the errors above", Toast.LENGTH_SHORT).show();
             return;
         }
 

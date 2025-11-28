@@ -1,10 +1,11 @@
 package com.clublink.club_link;
 
-import android.content.Intent;
+import android.app.DatePickerDialog;
 import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.widget.Toast;
+import android.widget.ArrayAdapter;
 
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
@@ -12,6 +13,10 @@ import androidx.appcompat.app.AppCompatActivity;
 
 import com.bumptech.glide.Glide;
 import com.clublink.club_link.databinding.ActivityAddEventBinding;
+
+import java.text.SimpleDateFormat;
+import java.util.Calendar;
+import java.util.Locale;
 
 public class AddEventActivity extends AppCompatActivity {
 
@@ -22,6 +27,9 @@ public class AddEventActivity extends AppCompatActivity {
     private Uri selectedImageUri = null;      // gallery image
     private String selectedBuiltinKey = null; // e.g. "builtin:preset1"
 
+    // For date
+    private long selectedDateMillis = -1L;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -31,10 +39,23 @@ public class AddEventActivity extends AppCompatActivity {
         repo = new EventsRepository(this);
         setTitle("Add Event");
 
-        // 1) User picks from phone gallery
+        // --- Location autocomplete (internal list) ---
+        String[] locations = getResources().getStringArray(R.array.campus_locations);
+        ArrayAdapter<String> locAdapter = new ArrayAdapter<>(
+                this,
+                android.R.layout.simple_dropdown_item_1line,
+                locations
+        );
+        b.editLocation.setAdapter(locAdapter);
+        b.editLocation.setThreshold(1);
+
+        // --- Date picker ---
+        b.txtDate.setOnClickListener(v -> showDatePicker());
+
+        // --- Image: pick from phone ---
         b.btnPickImage.setOnClickListener(v -> pickImageFromPhone());
 
-        // 2) User picks one of the app preset images
+        // --- Image: pick from app presets ---
         b.imgPreset1.setOnClickListener(v ->
                 selectBuiltin("builtin:preset1", R.drawable.event_preset1));
 
@@ -44,23 +65,51 @@ public class AddEventActivity extends AppCompatActivity {
         b.imgPreset3.setOnClickListener(v ->
                 selectBuiltin("builtin:preset3", R.drawable.event_preset3));
 
-        // Save button
+        // --- Save button ---
         b.btnSave.setOnClickListener(v -> saveEvent());
+    }
+
+    // ---------------- DATE PICKER ----------------
+
+    private void showDatePicker() {
+        final Calendar now = Calendar.getInstance();
+
+        DatePickerDialog dialog = new DatePickerDialog(
+                this,
+                (view, year, month, dayOfMonth) -> {
+                    Calendar c = Calendar.getInstance();
+                    // Set selected date, choose a default time (e.g. 12:00 noon)
+                    c.set(year, month, dayOfMonth, 12, 0, 0);
+                    c.set(Calendar.MILLISECOND, 0);
+                    selectedDateMillis = c.getTimeInMillis();
+
+                    SimpleDateFormat fmt =
+                            new SimpleDateFormat("EEE, MMM d, yyyy", Locale.getDefault());
+                    b.txtDate.setText(fmt.format(c.getTime()));
+                },
+                now.get(Calendar.YEAR),
+                now.get(Calendar.MONTH),
+                now.get(Calendar.DAY_OF_MONTH)
+        );
+
+        dialog.show();
     }
 
     // ---------------- IMAGE PICKER (PHONE) ----------------
 
     private final ActivityResultLauncher<String> pickImageLauncher =
-            registerForActivityResult(new ActivityResultContracts.GetContent(), uri -> {
-                if (uri != null) {
-                    selectedImageUri = uri;
-                    selectedBuiltinKey = null; // override preset if user picks from phone
+            registerForActivityResult(
+                    new ActivityResultContracts.GetContent(),
+                    uri -> {
+                        if (uri != null) {
+                            selectedImageUri = uri;
+                            selectedBuiltinKey = null; // override preset if user picks phone image
 
-                    Glide.with(this)
-                            .load(uri)
-                            .into(b.imgPreview);
-                }
-            });
+                            Glide.with(this)
+                                    .load(uri)
+                                    .into(b.imgPreview);
+                        }
+                    });
 
     private void pickImageFromPhone() {
         pickImageLauncher.launch("image/*");
@@ -90,7 +139,13 @@ public class AddEventActivity extends AppCompatActivity {
             return;
         }
 
-        long startTime = System.currentTimeMillis() + 60L * 60L * 1000L;
+        // If the user picked a date, use that; else default to "now + 1 hour"
+        long startTime;
+        if (selectedDateMillis > 0) {
+            startTime = selectedDateMillis;
+        } else {
+            startTime = System.currentTimeMillis() + 60L * 60L * 1000L;
+        }
 
         Event e = new Event();
         e.title = title;

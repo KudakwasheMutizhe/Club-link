@@ -9,6 +9,18 @@
         <item>Technology</item>
     </string-array>
 
+    <string-array name="campus_locations">
+        <item>TRU Campus Activity Centre</item>
+        <item>TRU Library</item>
+        <item>Old Main</item>
+        <item>Science Building</item>
+        <item>Campus Commons</item>
+        <item>Student Union Building</item>
+        <item>Gymnasium</item>
+        <item>Hillside Stadium</item>
+        <item>TRU Old Gymnasium</item>
+    </string-array>
+
 
     <string name="title_activity_main2">MainActivity2</string>
     <string name="title_home">Home</string>

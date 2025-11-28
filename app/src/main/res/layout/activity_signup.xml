@@ -81,9 +81,61 @@
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:padding="12dp"
-            android:layout_marginBottom="24dp"
+            android:layout_marginBottom="8dp"
             android:background="@drawable/edittext_background"
             android:inputType="textPassword" />
+
+        <!-- 🔹 Password requirements text -->
+        <TextView
+            android:id="@+id/tvPasswordLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Password must contain:"
+            android:textSize="14sp"
+            android:textColor="#333333"
+            android:layout_marginBottom="4dp" />
+
+        <TextView
+            android:id="@+id/tvReqLength"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="• At least 8 characters"
+            android:textSize="13sp"
+            android:textColor="#AA0000" />
+
+        <TextView
+            android:id="@+id/tvReqUpperLower"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="• At least one uppercase and one lowercase letter"
+            android:textSize="13sp"
+            android:textColor="#AA0000" />
+
+        <TextView
+            android:id="@+id/tvReqDigit"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="• At least one number"
+            android:textSize="13sp"
+            android:textColor="#AA0000" />
+
+        <TextView
+            android:id="@+id/tvReqSpecial"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="• At least one special character (!@#$% etc.)"
+            android:textSize="13sp"
+            android:textColor="#AA0000" />
+
+        <TextView
+            android:id="@+id/tvReqNoSpace"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="• No spaces"
+            android:textSize="13sp"
+            android:textColor="#AA0000"
+            android:layout_marginBottom="20dp" />
+
 
         <!-- Sign Up button -->
         <Button

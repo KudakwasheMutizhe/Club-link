@@ -12,7 +12,7 @@
         android:layout_marginTop="16dp"
         android:fontFamily="serif"
         android:text="Event image"
-        android:textColor="#040404"
+        android:textColor="#070707"
         android:textSize="30sp"
         android:textStyle="bold" />
 
@@ -96,13 +96,14 @@
         android:hint="Club (optional)" />
 
     <!-- Location -->
-    <EditText
+    <AutoCompleteTextView
         android:id="@+id/editLocation"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="Location"
         android:minHeight="48dp"
         android:layout_marginTop="12dp" />
+
 
     <!-- Category -->
     <EditText
@@ -112,6 +113,26 @@
         android:layout_marginTop="12dp"
         android:hint="Category (e.g. Social, Sports)"
         android:minHeight="48dp" />
+
+    <TextView
+        android:id="@+id/txtDateLabel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Event date"
+        android:textStyle="bold"
+        android:layout_marginTop="16dp" />
+
+    <TextView
+        android:id="@+id/txtDate"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingTop="8dp"
+        android:paddingBottom="8dp"
+        android:text="Tap to choose date"
+        android:textColor="#555555"
+        android:background="#EFEFEF"
+        android:padding="10dp" />
+
 
     <!-- Save button -->
     <Button

@@ -146,6 +146,17 @@ public class UserDbHelper extends SQLiteOpenHelper {
         db.close();
         return rows > 0;
     }
+    public boolean updatePasswordByEmail(String email, String newPassword) {
+        SQLiteDatabase db = this.getWritableDatabase();
+
+        ContentValues values = new ContentValues();
+        values.put("password", newPassword);  // use your actual column name
+
+        int rows = db.update("users", values, "email = ?", new String[]{ email });
+
+        return rows > 0;   // returns true if an account was updated
+    }
+
 
     // Delete user by username
     public boolean deleteUser(String username) {

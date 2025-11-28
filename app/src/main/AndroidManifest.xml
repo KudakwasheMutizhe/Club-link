@@ -55,6 +55,8 @@
         <activity
             android:name=".Messages"
             android:exported="false" />
+        <activity android:name=".ForgotPasswordActivity"
+            android:exported="false" />
         <activity
             android:name="EventDetailsActivity"
             android:label="Event Details"

@@ -12,7 +12,7 @@ public class LoginActivity extends AppCompatActivity {
 
     EditText etUsername, etPassword;
     Button btnLogin;
-    TextView tvSignup;
+    TextView tvSignup, tvForgotPassword;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -24,18 +24,36 @@ public class LoginActivity extends AppCompatActivity {
         etPassword = findViewById(R.id.etPassword);
         btnLogin = findViewById(R.id.btnLogin);
         tvSignup = findViewById(R.id.tvSignup);
+        tvForgotPassword = findViewById(R.id.tvForgotPassword);
 
+        // -------------------------------
+        // LOGIN BUTTON LOGIC (RESTORED)
+        // -------------------------------
         btnLogin.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
+
                 String user = etUsername.getText().toString().trim();
                 String pass = etPassword.getText().toString().trim();
 
-                if (user.isEmpty() || pass.isEmpty()) {
+                boolean hasError = false;
+
+                if (user.isEmpty()) {
+                    etUsername.setError("Username required");
+                    hasError = true;
+                }
+
+                if (pass.isEmpty()) {
+                    etPassword.setError("Password required");
+                    hasError = true;
+                }
+
+                if (hasError) {
                     Toast.makeText(LoginActivity.this, "Please enter both fields", Toast.LENGTH_SHORT).show();
                     return;
                 }
 
+                // SQLite helper
                 UserDbHelper db = new UserDbHelper(LoginActivity.this);
 
                 // 🔹 Use loginUser to get the id
@@ -54,26 +72,33 @@ public class LoginActivity extends AppCompatActivity {
                             .putString("logged_in_username", user)
                             .apply();
 
-                    // Go to your next screen
+                    // Move to next screen (your Lottie screen)
                     Intent intent = new Intent(LoginActivity.this, LottieActivity.class);
                     intent.putExtra("username", user);
                     startActivity(intent);
-                    // finish();  // up to you
+
+                    // finish(); // optional
                 } else {
                     Toast.makeText(LoginActivity.this, "Invalid username or password", Toast.LENGTH_SHORT).show();
                 }
             }
         });
 
+        // -------------------------------
+        // Navigate to Sign Up
+        // -------------------------------
+        tvSignup.setOnClickListener(view ->
+                startActivity(new Intent(LoginActivity.this, SignupActivity.class))
+        );
 
-        // Navigate to sign-up
-        tvSignup.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                startActivity(new Intent(LoginActivity.this, SignupActivity.class));
-            }
-        });
+        // -------------------------------
+        // Navigate to Forgot Password
+        // -------------------------------
+        tvForgotPassword.setOnClickListener(view ->
+                startActivity(new Intent(LoginActivity.this, ForgotPasswordActivity.class))
+        );
     }
 }
+
 
 
