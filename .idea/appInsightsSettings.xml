@@ -8,7 +8,7 @@
             <InsightsFilterSettings>
               <option name="connection">
                 <ConnectionSetting>
-                  <option name="appId" value="com.example.course_link" />
+                  <option name="appId" value="com.clublink.club_link" />
                   <option name="mobileSdkAppId" value="1:86774215605:android:819d322b562eefd71d9ffc" />
                   <option name="projectId" value="club-link-98acb" />
                   <option name="projectNumber" value="86774215605" />
