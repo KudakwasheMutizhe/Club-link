@@ -14,6 +14,10 @@ import androidx.recyclerview.widget.ListAdapter;
 import androidx.recyclerview.widget.RecyclerView;
 import com.bumptech.glide.Glide;
 import com.clublink.club_link.R;
+import com.clublink.club_link.Event;
+
+
+import java.util.Locale;
 
 public class EventsAdapter extends ListAdapter<Event, EventsAdapter.VH>{
     public interface Callbacks {
@@ -56,12 +60,26 @@ public class EventsAdapter extends ListAdapter<Event, EventsAdapter.VH>{
         h.location.setText(e.location);
 
 
-        Glide.with(h.banner.getContext())
-                .load(e.imageUrl == null || e.imageUrl.isEmpty() ? R.drawable.ic_event_placeholder : e.imageUrl)
-                .into(h.banner);
-
-
-
+        // Decide how to load image based on imageUrl content
+        if (e.imageUrl != null && !e.imageUrl.isEmpty()) {
+            if (e.imageUrl.startsWith("builtin:")) {
+                // Load one of the app presets
+                int resId = getBuiltinImageRes(e.imageUrl);
+                Glide.with(h.banner.getContext())
+                        .load(resId)
+                        .into(h.banner);
+            } else {
+                // Assume it's a URI from gallery
+                Glide.with(h.banner.getContext())
+                        .load(e.imageUrl)
+                        .into(h.banner);
+            }
+        } else {
+            // No image -> fallback placeholder
+            Glide.with(h.banner.getContext())
+                    .load(android.R.drawable.ic_menu_gallery)
+                    .into(h.banner);
+        }
 
         h.rsvp.setText(e.isGoing ? "Going" : "RSVP");
         h.rsvp.setOnClickListener(v -> callbacks.onRsvpClicked(e));
@@ -69,6 +87,20 @@ public class EventsAdapter extends ListAdapter<Event, EventsAdapter.VH>{
 
         h.itemView.setOnClickListener(v -> callbacks.onItemClicked(e));
     }
+
+    private int getBuiltinImageRes(String key) {
+        if ("builtin:preset1".equals(key)) {
+            return R.drawable.event_preset1;
+        } else if ("builtin:preset2".equals(key)) {
+            return R.drawable.event_preset2;
+        } else if ("builtin:preset3".equals(key)) {
+            return R.drawable.event_preset3;
+        }
+
+        // fallback
+        return android.R.drawable.ic_menu_gallery;
+    }
+
 
 
     static class VH extends RecyclerView.ViewHolder {

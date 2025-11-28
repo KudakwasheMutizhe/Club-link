@@ -1,17 +1,26 @@
 package com.clublink.club_link;
 
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
 import android.widget.Toast;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 
+import com.bumptech.glide.Glide;
 import com.clublink.club_link.databinding.ActivityAddEventBinding;
 
 public class AddEventActivity extends AppCompatActivity {
 
     private ActivityAddEventBinding b;
     private EventsRepository repo;
+
+    // For images
+    private Uri selectedImageUri = null;      // gallery image
+    private String selectedBuiltinKey = null; // e.g. "builtin:preset1"
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -20,18 +29,59 @@ public class AddEventActivity extends AppCompatActivity {
         setContentView(b.getRoot());
 
         repo = new EventsRepository(this);
-
-        // Simple title bar text if you want
         setTitle("Add Event");
 
+        // 1) User picks from phone gallery
+        b.btnPickImage.setOnClickListener(v -> pickImageFromPhone());
+
+        // 2) User picks one of the app preset images
+        b.imgPreset1.setOnClickListener(v ->
+                selectBuiltin("builtin:preset1", R.drawable.event_preset1));
+
+        b.imgPreset2.setOnClickListener(v ->
+                selectBuiltin("builtin:preset2", R.drawable.event_preset2));
+
+        b.imgPreset3.setOnClickListener(v ->
+                selectBuiltin("builtin:preset3", R.drawable.event_preset3));
+
+        // Save button
         b.btnSave.setOnClickListener(v -> saveEvent());
     }
+
+    // ---------------- IMAGE PICKER (PHONE) ----------------
+
+    private final ActivityResultLauncher<String> pickImageLauncher =
+            registerForActivityResult(new ActivityResultContracts.GetContent(), uri -> {
+                if (uri != null) {
+                    selectedImageUri = uri;
+                    selectedBuiltinKey = null; // override preset if user picks from phone
+
+                    Glide.with(this)
+                            .load(uri)
+                            .into(b.imgPreview);
+                }
+            });
+
+    private void pickImageFromPhone() {
+        pickImageLauncher.launch("image/*");
+    }
+
+    // ---------------- APP PRESET IMAGE SELECTION ----------------
+
+    private void selectBuiltin(String key, int drawableRes) {
+        selectedBuiltinKey = key;
+        selectedImageUri = null; // override phone selection
+
+        Glide.with(this)
+                .load(drawableRes)
+                .into(b.imgPreview);
+    }
+
+    // ---------------- SAVE EVENT ----------------
 
     private void saveEvent() {
         String title = b.editTitle.getText().toString().trim();
         String location = b.editLocation.getText().toString().trim();
-
-        // Optional extras
         String club = b.editClub.getText().toString().trim();
         String category = b.editCategory.getText().toString().trim();
 
@@ -40,7 +90,6 @@ public class AddEventActivity extends AppCompatActivity {
             return;
         }
 
-        // For now: event time = 1 hour from now
         long startTime = System.currentTimeMillis() + 60L * 60L * 1000L;
 
         Event e = new Event();
@@ -49,18 +98,28 @@ public class AddEventActivity extends AppCompatActivity {
         e.club = club;
         e.category = category;
         e.startEpochMillis = startTime;
-        e.imageUrl = "";        // no image yet
+
+        // Decide what to store in imageUrl:
+        if (selectedImageUri != null) {
+            // user picked from phone
+            e.imageUrl = selectedImageUri.toString();
+        } else if (selectedBuiltinKey != null) {
+            // user picked a preset
+            e.imageUrl = selectedBuiltinKey;  // like "builtin:preset1"
+        } else {
+            // nothing picked
+            e.imageUrl = "";
+        }
+
         e.isBookmarked = false;
         e.isGoing = false;
 
         long id = repo.insert(e);
         if (id != -1) {
-            Toast.makeText(this, "Event added ", Toast.LENGTH_SHORT).show();
-            finish();  // go back to EventsActivity
+            Toast.makeText(this, "Event added ✅", Toast.LENGTH_SHORT).show();
+            finish();
         } else {
             Toast.makeText(this, "Error saving event", Toast.LENGTH_SHORT).show();
         }
     }
 }
-
-
