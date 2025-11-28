@@ -14,4 +14,12 @@
     <string name="title_home">Home</string>
     <string name="title_dashboard">Dashboard</string>
     <string name="title_notifications">Notifications</string>
+
+    <!-- strings added for activity_detail.xml -->
+    <string name="club_name_default">Art Club</string>
+    <string name="club_category">Category</string>
+    <string name="club_description">This club is a welcoming space for creatives who want to express themselves through art.\n\nWhether you’re a painter, writer, designer, or simply someone who loves to create, this is a place to connect with others.\n\nOur goal is to inspire, collaborate, and grow together as artists, while celebrating all forms of creative expression.</string>
+    <string name="edit_club">Edit Club</string>
+    <string name="header_clublink">Club Link</string>
+    <string name="back_image_desc">Back</string>
 </resources>
