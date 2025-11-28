@@ -49,7 +49,6 @@ dependencies {
 
     // Import the Firebase BoM
     // This will manage the versions of all Firebase libraries
-    implementation(platform("com.google.firebase:firebase-bom:33.4.0"))
     implementation(platform("com.google.firebase:firebase-bom:34.6.0"))
 
     // Add Firebase dependencies without specifying their versions
