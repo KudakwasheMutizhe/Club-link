@@ -7,11 +7,11 @@ plugins {
 }
 
 android {
-    namespace = "com.example.course_link"
+    namespace = "com.clublink.club_link"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.course_link"
+        applicationId = "com.clublink.club_link"
         minSdk = 36
         targetSdk = 36
         versionCode = 1
