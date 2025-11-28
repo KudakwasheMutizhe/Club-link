@@ -55,7 +55,7 @@
         android:layout_height="wrap_content"
         android:backgroundTint="#FDF8F8"
         android:text="Log In"
-        android:textColor="#0B4CFD"
+        android:textColor="#132454"
         android:textSize="24sp"
         android:layout_margin="10dp"/>
 
