@@ -24,7 +24,7 @@ import java.util.Locale;
 /**
  * ChatListActivity - Shows list of all chat conversations
  * Only shows chats where the logged-in user is a participant.
- *
+ 
  * Identity for chats:
  *  - Prefer username.toLowerCase()
  *  - If username missing, fall back to "uid_<numericId>"
@@ -81,44 +81,39 @@ public class ChatListActivity extends AppCompatActivity {
         Log.d(TAG, "ChatList for userKey = " + currentUserKey + " (username=" + currentUsername + ")");
 
         // ---------- Bottom Navigation ----------
+        // In ChatListActivity.java -> onCreate()
+
+// ---------- Bottom Navigation ----------
         BottomNavigationView bottomNavigationView = findViewById(R.id.bottomNavigationView);
         if (bottomNavigationView != null) {
-            final boolean[] isInitialSelection = {true};
+            // Set the "Messages" icon as active without triggering the listener
+            bottomNavigationView.getMenu().findItem(R.id.nav_messages).setChecked(true);
 
             bottomNavigationView.setOnItemSelectedListener(item -> {
-                if (isInitialSelection[0]) {
-                    isInitialSelection[0] = false;
-                    return true;
-                }
-
                 int itemId = item.getItemId();
 
                 if (itemId == R.id.nav_home) {
                     startActivity(new Intent(ChatListActivity.this, MainActivity.class));
-                    finish();
+                    // finish(); // Optional: finish() if you don't want to return to the chat list
                     return true;
                 } else if (itemId == R.id.nav_events) {
                     startActivity(new Intent(ChatListActivity.this, EventsActivity.class));
-                    finish();
                     return true;
                 } else if (itemId == R.id.nav_messages) {
-                    // already here
+                    // User is clicking the icon for the screen they are already on. Do nothing.
                     return true;
                 } else if (itemId == R.id.nav_announcements) {
                     startActivity(new Intent(ChatListActivity.this, AnnouncementsActivity.class));
-                    finish();
                     return true;
                 } else if (itemId == R.id.nav_profile) {
                     startActivity(new Intent(ChatListActivity.this, ProfileActivity.class));
-                    finish();
                     return true;
                 }
 
                 return false;
             });
-
-            bottomNavigationView.setSelectedItemId(R.id.nav_messages);
         }
+
 
         // ---------- RecyclerView + Adapter ----------
         adapter = new ChatListAdapter(chatPreview -> {

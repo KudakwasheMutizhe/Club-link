@@ -91,22 +91,18 @@ public class MainActivity extends AppCompatActivity {
                 return true;
             } else if (itemId == R.id.nav_events) {
                 startActivity(new Intent(MainActivity.this, EventsActivity.class));
-                finish(); // Finish MainActivity so the back button works as expected
                 return true;
             } else if (itemId == R.id.nav_messages) {
-                // Note: You may want to go to ChatListActivity instead of DashboardActivity
-                // depending on your app's flow.
+                // Navigate to ChatListActivity
                 Intent intent = new Intent(MainActivity.this, ChatListActivity.class);
                 startActivity(intent);
-                finish();
                 return true;
+
             } else if (itemId == R.id.nav_announcements) {
                 startActivity(new Intent(MainActivity.this, AnnouncementsActivity.class));
-                finish();
                 return true;
             } else if (itemId == R.id.nav_profile) {
                 startActivity(new Intent(MainActivity.this, ProfileActivity.class));
-                finish();
                 return true;
             }
 
