@@ -81,6 +81,18 @@ public class SignupActivity extends AppCompatActivity {
             startActivity(new Intent(SignupActivity.this, LoginActivity.class));
             finish();
         });
+
+        // 🔙 HARD REDIRECT: Back arrow → LoginActivity
+        View backArrow = findViewById(R.id.backArrow);
+        if (backArrow != null) {
+            backArrow.setOnClickListener(v -> {
+                Intent intent = new Intent(SignupActivity.this, LoginActivity.class);
+                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+                startActivity(intent);
+                finish();
+            });
+        }
+
     }
 
     // ---------------- LIVE USERNAME CHECK ----------------

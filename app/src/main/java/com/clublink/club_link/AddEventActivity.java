@@ -1,6 +1,7 @@
 package com.clublink.club_link;
 
 import android.app.DatePickerDialog;
+import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.text.TextUtils;
@@ -38,6 +39,14 @@ public class AddEventActivity extends AppCompatActivity {
 
         repo = new EventsRepository(this);
         setTitle("Add Event");
+
+        // 🔙 HARD REDIRECT: Back arrow → ALWAYS go to EventsActivity
+        b.backArrow.setOnClickListener(v -> {
+            Intent intent = new Intent(AddEventActivity.this, EventsActivity.class);
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+            finish();
+        });
 
         // --- Location autocomplete (internal list) ---
         String[] locations = getResources().getStringArray(R.array.campus_locations);
@@ -172,6 +181,12 @@ public class AddEventActivity extends AppCompatActivity {
         long id = repo.insert(e);
         if (id != -1) {
             Toast.makeText(this, "Event added ✅", Toast.LENGTH_SHORT).show();
+
+            // After saving, also HARD REDIRECT to EventsActivity
+            Intent intent = new Intent(AddEventActivity.this, EventsActivity.class);
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_NEW_TASK);
+            startActivity(intent);
+
             finish();
         } else {
             Toast.makeText(this, "Error saving event", Toast.LENGTH_SHORT).show();
