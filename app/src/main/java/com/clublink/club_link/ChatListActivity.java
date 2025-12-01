@@ -44,8 +44,7 @@ public class ChatListActivity extends AppCompatActivity {
 
     private DatabaseReference chatsRef;
     private DatabaseReference messagesRef;
-
-    // Session / user info
+    private ChildEventListener chatsListener;
     private SessionManager sessionManager;
     private long currentUserId;
     private String currentUsername;
@@ -149,40 +148,44 @@ public class ChatListActivity extends AppCompatActivity {
      */
     private void loadChatsForCurrentUser() {
         String childPath = "participants/" + currentUserKey;
-
         Log.d(TAG, "Querying chats where " + childPath + " = true");
+        // First, define the listener
+        chatsListener = new ChildEventListener() {
+            @Override
+            public void onChildAdded(@NonNull DataSnapshot snapshot, String previousChildName) {
+                Log.d(TAG, "onChildAdded: chat " + snapshot.getKey());
+                buildChatPreviewForSnapshot(snapshot);
+            }
 
+            @Override
+            public void onChildChanged(@NonNull DataSnapshot snapshot, String previousChildName) {
+                Log.d(TAG, "onChildChanged: chat " + snapshot.getKey());
+                buildChatPreviewForSnapshot(snapshot);
+            }
+
+            @Override
+            public void onChildRemoved(@NonNull DataSnapshot snapshot) {
+                String chatId = snapshot.getKey();
+                Log.d(TAG, "onChildRemoved: chat " + chatId);
+                removeChatFromList(chatId);
+            }
+
+            @Override public void onChildMoved(@NonNull DataSnapshot snapshot, String previousChildName) { }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Log.e(TAG, "Firebase error: " + error.getMessage(), error.toException());
+            }
+        };
+
+        // Now, attach the listener using the variable
         chatsRef.orderByChild(childPath)
                 .equalTo(true)
-                .addChildEventListener(new ChildEventListener() {
-                    @Override
-                    public void onChildAdded(@NonNull DataSnapshot snapshot, String previousChildName) {
-                        Log.d(TAG, "onChildAdded: chat " + snapshot.getKey());
-                        buildChatPreviewForSnapshot(snapshot);
-                    }
+                .addChildEventListener(chatsListener);
 
-                    @Override
-                    public void onChildChanged(@NonNull DataSnapshot snapshot, String previousChildName) {
-                        Log.d(TAG, "onChildChanged: chat " + snapshot.getKey());
-                        buildChatPreviewForSnapshot(snapshot);
-                    }
-
-                    @Override
-                    public void onChildRemoved(@NonNull DataSnapshot snapshot) {
-                        String chatId = snapshot.getKey();
-                        Log.d(TAG, "onChildRemoved: chat " + chatId);
-                        removeChatFromList(chatId);
-
-                    }
-
-                    @Override public void onChildMoved(@NonNull DataSnapshot snapshot, String previousChildName) { }
-
-                    @Override
-                    public void onCancelled(@NonNull DatabaseError error) {
-                        Log.e(TAG, "Firebase error: " + error.getMessage(), error.toException());
-                    }
-                });
+        // --- END OF CHANGES ---
     }
+
 
     /**
      * Builds or updates a ChatPreview for this snapshot.
@@ -284,6 +287,10 @@ public class ChatListActivity extends AppCompatActivity {
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        if (chatsRef != null && chatsListener != null) {
+            chatsRef.removeEventListener(chatsListener);
+        }
+
         // Clean up all Firebase Listeners to prevent memory leaks and crashes
         if (messagesRef != null) {
             for (java.util.Map.Entry<String, com.google.firebase.database.ValueEventListener> entry : messageListeners.entrySet()) {
