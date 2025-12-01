@@ -1,147 +1,152 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="16dp">
-
-    <TextView
-        android:id="@+id/txtImageSection"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:fontFamily="serif"
-        android:text="Event image"
-        android:textColor="#070707"
-        android:textSize="30sp"
-        android:textStyle="bold" />
-
-    <!-- Preview of chosen image -->
-    <ImageView
-        android:id="@+id/imgPreview"
-        android:layout_width="match_parent"
-        android:layout_height="180dp"
-        android:scaleType="centerCrop"
-        android:background="#DDDDDD"
-        android:layout_marginTop="8dp" />
-
-    <!-- Buttons row: pick from phone OR presets -->
-    <Button
-        android:id="@+id/btnPickImage"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Choose from phone"
-        android:backgroundTint="#17267A"
-        android:layout_marginTop="8dp" />
-
-    <TextView
-        android:id="@+id/txtOrFromApp"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Or choose from app images:"
-        android:layout_marginTop="12dp" />
+    android:layout_height="match_parent">
 
     <LinearLayout
-        android:id="@+id/layoutPresets"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:gravity="center_vertical"
-        android:layout_marginTop="8dp">
+        android:orientation="vertical"
+        android:padding="16dp">
 
-        <ImageView
-            android:id="@+id/imgPreset1"
-            android:layout_width="0dp"
-            android:layout_height="80dp"
-            android:layout_weight="1"
-            android:scaleType="centerCrop"
-            android:src="@drawable/event_preset1"
-            android:padding="4dp" />
+        <TextView
+            android:id="@+id/txtImageSection"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="16dp"
+            android:fontFamily="serif"
+            android:text="Event image"
+            android:textColor="#070707"
+            android:textSize="30sp"
+            android:textStyle="bold" />
 
+        <!-- Preview of chosen image -->
         <ImageView
-            android:id="@+id/imgPreset2"
-            android:layout_width="0dp"
-            android:layout_height="80dp"
-            android:layout_weight="1"
+            android:id="@+id/imgPreview"
+            android:layout_width="match_parent"
+            android:layout_height="180dp"
             android:scaleType="centerCrop"
-            android:src="@drawable/event_preset2"
-            android:padding="4dp" />
+            android:background="#DDDDDD"
+            android:layout_marginTop="8dp" />
 
-        <ImageView
-            android:id="@+id/imgPreset3"
-            android:layout_width="0dp"
-            android:layout_height="80dp"
-            android:layout_weight="1"
-            android:scaleType="centerCrop"
-            android:src="@drawable/event_preset3"
-            android:padding="4dp" />
+        <!-- Buttons row: pick from phone OR presets -->
+        <Button
+            android:id="@+id/btnPickImage"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Choose from phone"
+            android:backgroundTint="#17267A"
+            android:layout_marginTop="8dp" />
+
+        <TextView
+            android:id="@+id/txtOrFromApp"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Or choose from app images:"
+            android:layout_marginTop="12dp" />
+
+        <LinearLayout
+            android:id="@+id/layoutPresets"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:layout_marginTop="8dp">
+
+            <ImageView
+                android:id="@+id/imgPreset1"
+                android:layout_width="0dp"
+                android:layout_height="80dp"
+                android:layout_weight="1"
+                android:scaleType="centerCrop"
+                android:src="@drawable/event_preset1"
+                android:padding="4dp" />
+
+            <ImageView
+                android:id="@+id/imgPreset2"
+                android:layout_width="0dp"
+                android:layout_height="80dp"
+                android:layout_weight="1"
+                android:scaleType="centerCrop"
+                android:src="@drawable/event_preset2"
+                android:padding="4dp" />
+
+            <ImageView
+                android:id="@+id/imgPreset3"
+                android:layout_width="0dp"
+                android:layout_height="80dp"
+                android:layout_weight="1"
+                android:scaleType="centerCrop"
+                android:src="@drawable/event_preset3"
+                android:padding="4dp" />
+        </LinearLayout>
+
+        <!-- Title -->
+        <EditText
+            android:id="@+id/editTitle"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Event title"
+            android:minHeight="48dp"
+            android:layout_marginTop="20sp" />
+
+        <!-- Club (optional) -->
+        <EditText
+            android:id="@+id/editClub"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
+            android:layout_marginTop="12dp"
+            android:hint="Club (optional)" />
+
+        <!-- Location -->
+        <AutoCompleteTextView
+            android:id="@+id/editLocation"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="Location"
+            android:minHeight="48dp"
+            android:layout_marginTop="12dp" />
+
+        <!-- Category -->
+        <EditText
+            android:id="@+id/editCategory"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:hint="Category (e.g. Social, Sports)"
+            android:minHeight="48dp" />
+
+        <TextView
+            android:id="@+id/txtDateLabel"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Event date"
+            android:textStyle="bold"
+            android:layout_marginTop="16dp" />
+
+        <TextView
+            android:id="@+id/txtDate"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:paddingTop="8dp"
+            android:paddingBottom="8dp"
+            android:text="Tap to choose date"
+            android:textColor="#555555"
+            android:background="#EFEFEF"
+            android:padding="10dp" />
+
+        <!-- Save button -->
+        <Button
+            android:id="@+id/btnSave"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:backgroundTint="#17267A"
+            android:minHeight="48dp"
+            android:text="Save Event" />
+
     </LinearLayout>
 
-    <!-- Title -->
-    <EditText
-        android:layout_marginTop="20sp"
-        android:id="@+id/editTitle"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="Event title"
-        android:minHeight="48dp" />
+</ScrollView>
 
-    <!-- Club (optional) -->
-    <EditText
-        android:id="@+id/editClub"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:minHeight="48dp"
-        android:layout_marginTop="12dp"
-        android:hint="Club (optional)" />
-
-    <!-- Location -->
-    <AutoCompleteTextView
-        android:id="@+id/editLocation"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="Location"
-        android:minHeight="48dp"
-        android:layout_marginTop="12dp" />
-
-
-    <!-- Category -->
-    <EditText
-        android:id="@+id/editCategory"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:hint="Category (e.g. Social, Sports)"
-        android:minHeight="48dp" />
-
-    <TextView
-        android:id="@+id/txtDateLabel"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Event date"
-        android:textStyle="bold"
-        android:layout_marginTop="16dp" />
-
-    <TextView
-        android:id="@+id/txtDate"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:paddingTop="8dp"
-        android:paddingBottom="8dp"
-        android:text="Tap to choose date"
-        android:textColor="#555555"
-        android:background="#EFEFEF"
-        android:padding="10dp" />
-
-
-    <!-- Save button -->
-    <Button
-        android:id="@+id/btnSave"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="24dp"
-        android:backgroundTint="#17267A"
-        android:minHeight="48dp"
-        android:text="Save Event" />
-
-</LinearLayout>
