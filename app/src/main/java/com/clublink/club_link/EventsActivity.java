@@ -44,49 +44,39 @@ public class EventsActivity extends AppCompatActivity implements EventsAdapter.C
             long selected = new java.util.GregorianCalendar(year, month, dayOfMonth).getTimeInMillis();
             showForDay(selected);
         });
+        // 1. Set the correct icon as "selected" in the menu without triggering the listener.
+        b.bottomNav.getMenu().findItem(R.id.nav_events).setChecked(true);
 
-        // --- START: CORRECTED NAVIGATION BLOCK ---
-
-        // This flag prevents the listener from re-navigating when the screen first loads.
-        final boolean[] isInitialSelection = {true};
-
-        // Use the binding variable 'b.bottomNav' for the listener
+        // 2. Set the listener to handle user clicks for navigating to OTHER activities.
         b.bottomNav.setOnItemSelectedListener(item -> {
-            // If this is the first selection event (on screen load), ignore it.
-            if (isInitialSelection[0]) {
-                isInitialSelection[0] = false; // Mark as handled
-                return true; // Consume the event, but do nothing.
-            }
-
             int itemId = item.getItemId();
 
             if (itemId == R.id.nav_home) {
+                // Go to MainActivity
                 startActivity(new Intent(EventsActivity.this, MainActivity.class));
-                finish();
                 return true;
             } else if (itemId == R.id.nav_events) {
-                // Already here, do nothing.
+                // The user is already on this screen, so do nothing.
                 return true;
             } else if (itemId == R.id.nav_messages) {
-                Intent intent = new Intent(EventsActivity.this, DashboardActivity.class);
-                intent.putExtra("CHAT_ID", "GLOBAL_CHAT");
-                intent.putExtra("CHAT_NAME", "Messages");
-                startActivity(intent);
-                finish();
+                // CORRECTED: Go to the list of chats, not a single dashboard.
+                startActivity(new Intent(EventsActivity.this, ChatListActivity.class));
                 return true;
             } else if (itemId == R.id.nav_announcements) {
+                // Go to AnnouncementsActivity
                 startActivity(new Intent(EventsActivity.this, AnnouncementsActivity.class));
-                finish();
                 return true;
             } else if (itemId == R.id.nav_profile) {
-                // CORRECTED: This should start the ProfileActivity activity
+                // Go to ProfileActivity
                 startActivity(new Intent(EventsActivity.this, ProfileActivity.class));
-                finish();
                 return true;
             }
 
+            // If the item ID is not recognized, do nothing.
             return false;
         });
+
+
 
         // Set the selected item on the correct view AFTER setting the listener
         b.bottomNav.setSelectedItemId(R.id.nav_events);
