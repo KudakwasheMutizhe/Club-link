@@ -24,7 +24,7 @@ import java.util.Locale;
 /**
  * ChatListActivity - Shows list of all chat conversations
  * Only shows chats where the logged-in user is a participant.
- 
+ re
  * Identity for chats:
  *  - Prefer username.toLowerCase()
  *  - If username missing, fall back to "uid_<numericId>"
@@ -40,6 +40,8 @@ public class ChatListActivity extends AppCompatActivity {
     private final ArrayList<ChatPreview> chatPreviews = new ArrayList<>();
     private final HashMap<String, ChatPreview> chatMap = new HashMap<>();
 
+    private final HashMap<String, com.google.firebase.database.ValueEventListener> messageListeners = new HashMap<>();
+
     private DatabaseReference chatsRef;
     private DatabaseReference messagesRef;
 
@@ -53,7 +55,6 @@ public class ChatListActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_chat_list);
-
         recyclerView = findViewById(R.id.rvChatList);
         ImageButton btnNewChat = findViewById(R.id.btnNewChat);
 
@@ -170,13 +171,8 @@ public class ChatListActivity extends AppCompatActivity {
                     public void onChildRemoved(@NonNull DataSnapshot snapshot) {
                         String chatId = snapshot.getKey();
                         Log.d(TAG, "onChildRemoved: chat " + chatId);
-                        if (chatId != null) {
-                            ChatPreview preview = chatMap.remove(chatId);
-                            if (preview != null) {
-                                chatPreviews.remove(preview);
-                                adapter.submitList(new ArrayList<>(chatPreviews));
-                            }
-                        }
+                        removeChatFromList(chatId);
+
                     }
 
                     @Override public void onChildMoved(@NonNull DataSnapshot snapshot, String previousChildName) { }
@@ -210,44 +206,92 @@ public class ChatListActivity extends AppCompatActivity {
     /**
      * Load the last message for a given chat and update ChatPreview list.
      */
+
     private void loadLastMessage(String chatId, String displayName, long chatCreatedAt) {
+        // If a listener for this chat is already active, don't create another one.
+        if (messageListeners.containsKey(chatId)) {
+            return;
+        }
+
+        com.google.firebase.database.ValueEventListener listener = new com.google.firebase.database.ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                String lastMessageText = "No messages yet";
+                long timestamp = chatCreatedAt;
+
+                if (snapshot.exists()) {
+                    for (DataSnapshot msgSnapshot : snapshot.getChildren()) {
+                        MessageModal message = msgSnapshot.getValue(MessageModal.class);
+                        if (message != null) {
+                            lastMessageText = message.getSenderName() + ": " + message.getText();
+                            timestamp = message.getCreatedAt();
+                        }
+                    }
+                }
+
+                ChatPreview preview = chatMap.get(chatId);
+                if (preview == null) {
+                    preview = new ChatPreview(chatId, displayName, lastMessageText, timestamp, 0);
+                    chatMap.put(chatId, preview);
+                    chatPreviews.add(preview);
+                } else {
+                    preview.setChatName(displayName);
+                    preview.setLastMessage(lastMessageText);
+                    preview.setTimestamp(timestamp);
+                }
+
+                // Sort newest-first every time there's an update
+                chatPreviews.sort((a, b) -> Long.compare(b.getTimestamp(), a.getTimestamp()));
+                adapter.submitList(new ArrayList<>(chatPreviews));
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Log.e(TAG, "Error loading last message for " + chatId, error.toException());
+            }
+        };
+
+        // Store the listener so we can remove it later
+        messageListeners.put(chatId, listener);
+
+        // Attach the PERSISTENT listener using addValueEventListener
         messagesRef.orderByChild("chatId")
                 .equalTo(chatId)
                 .limitToLast(1)
-                .addListenerForSingleValueEvent(new com.google.firebase.database.ValueEventListener() {
-                    @Override
-                    public void onDataChange(@NonNull DataSnapshot snapshot) {
-                        String lastMessageText = "No messages yet";
-                        long timestamp = chatCreatedAt;
-
-                        for (DataSnapshot msgSnapshot : snapshot.getChildren()) {
-                            MessageModal message = msgSnapshot.getValue(MessageModal.class);
-                            if (message != null) {
-                                lastMessageText = message.getSenderName() + ": " + message.getText();
-                                timestamp = message.getCreatedAt();
-                            }
-                        }
-
-                        ChatPreview preview = chatMap.get(chatId);
-                        if (preview == null) {
-                            preview = new ChatPreview(chatId, displayName, lastMessageText, timestamp, 0);
-                            chatMap.put(chatId, preview);
-                            chatPreviews.add(preview);
-                        } else {
-                            preview.setChatName(displayName);
-                            preview.setLastMessage(lastMessageText);
-                            preview.setTimestamp(timestamp);
-                        }
-
-                        // Sort newest-first
-                        chatPreviews.sort((a, b) -> Long.compare(b.getTimestamp(), a.getTimestamp()));
-                        adapter.submitList(new ArrayList<>(chatPreviews));
-                    }
-
-                    @Override
-                    public void onCancelled(@NonNull DatabaseError error) {
-                        Log.e(TAG, "Error loading last message", error.toException());
-                    }
-                });
+                .addValueEventListener(listener);
     }
+
+    private void removeChatFromList(String chatId) {
+        if (chatId == null) return;
+
+        // Clean up the message listener to prevent memory leaks
+        if (messageListeners.containsKey(chatId)) {
+            com.google.firebase.database.ValueEventListener listener = messageListeners.remove(chatId);
+            if (listener != null) {
+                // We must use the exact same query to remove the listener
+                messagesRef.orderByChild("chatId").equalTo(chatId).limitToLast(1).removeEventListener(listener);
+            }
+        }
+
+        ChatPreview preview = chatMap.remove(chatId);
+        if (preview != null) {
+            chatPreviews.remove(preview);
+            adapter.submitList(new ArrayList<>(chatPreviews));
+        }
+    }
+
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        // Clean up all Firebase Listeners to prevent memory leaks and crashes
+        if (messagesRef != null) {
+            for (java.util.Map.Entry<String, com.google.firebase.database.ValueEventListener> entry : messageListeners.entrySet()) {
+                messagesRef.orderByChild("chatId").equalTo(entry.getKey()).limitToLast(1).removeEventListener(entry.getValue());
+            }
+            messageListeners.clear();
+        }
+
+    }
+
 }
