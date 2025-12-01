@@ -94,7 +94,7 @@ public class ChatListActivity extends AppCompatActivity {
 
                 if (itemId == R.id.nav_home) {
                     startActivity(new Intent(ChatListActivity.this, MainActivity.class));
-                    // finish(); // Optional: finish() if you don't want to return to the chat list
+
                     return true;
                 } else if (itemId == R.id.nav_events) {
                     startActivity(new Intent(ChatListActivity.this, EventsActivity.class));
