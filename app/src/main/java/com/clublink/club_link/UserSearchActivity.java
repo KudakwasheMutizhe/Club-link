@@ -4,6 +4,7 @@ import android.content.Intent;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.util.Log;
 import android.widget.EditText;
 import android.widget.Toast;
 
@@ -27,10 +28,11 @@ import java.util.Map;
 /**
  * Shows all other users from Firebase so you can start a DM.
  * Uses /users in Firebase; never shows the logged-in user.
- * Chat identity key = username.toLowerCase(), or "uid_<id>" fallback.
+ * Chat identity key = username.toLowerCase()
  */
 public class UserSearchActivity extends AppCompatActivity {
 
+    private static final String TAG = "UserSearchActivity";
     private static final String DB_URL = "https://club-link-default-rtdb.firebaseio.com/";
 
     private RecyclerView rvUsers;
@@ -55,6 +57,8 @@ public class UserSearchActivity extends AppCompatActivity {
         currentUserId = sessionManager.getUserId();
         currentUsername = sessionManager.getUsername();
 
+        Log.d(TAG, "Session - UserID: " + currentUserId + ", Username: '" + currentUsername + "'");
+
         if (currentUserId == -1) {
             // truly not logged in
             startActivity(new Intent(this, LoginActivity.class));
@@ -62,12 +66,16 @@ public class UserSearchActivity extends AppCompatActivity {
             return;
         }
 
-        // Build the same kind of identity key we used in ChatListActivity
-        if (currentUsername != null && !currentUsername.trim().isEmpty()) {
-            currentUserKey = currentUsername.toLowerCase(Locale.ROOT);
-        } else {
-            currentUserKey = "uid_" + currentUserId;
+        if (currentUsername == null || currentUsername.trim().isEmpty()) {
+            Toast.makeText(this, "Session error: Username missing", Toast.LENGTH_LONG).show();
+            startActivity(new Intent(this, LoginActivity.class));
+            finish();
+            return;
         }
+
+        // ✅ Use consistent key format: lowercase username (no fallback to uid_)
+        currentUserKey = currentUsername.toLowerCase(Locale.ROOT);
+        Log.d(TAG, "Current user key: " + currentUserKey);
 
         // --------- Views ----------
         rvUsers = findViewById(R.id.rvUsers);
@@ -79,7 +87,7 @@ public class UserSearchActivity extends AppCompatActivity {
 
         // --------- Firebase refs ----------
         FirebaseDatabase db = FirebaseDatabase.getInstance(DB_URL);
-        usersRef = db.getReference("users");
+        usersRef = db.getReference(); // ✅ Read from root, not /users/
         chatsRef = db.getReference("chats");
 
         // Load all users from Firebase
@@ -101,12 +109,14 @@ public class UserSearchActivity extends AppCompatActivity {
      * Returns a DM chat id that is unique per pair of keys and consistent
      * no matter who starts the conversation.
      *
-     * Example: "am" and "jane" -> "dmv2_am_jane"
-     * Example: "uid_3" and "am" -> "dmv2_am_uid_3"
+     * Example: "alice" and "jane" -> "dmv2_alice_jane"
+     * Example: "bob" and "alice" -> "dmv2_alice_bob"
      */
     private String buildDmChatId(String key1, String key2) {
-        String a = key1;
-        String b = key2;
+        String a = key1.toLowerCase(Locale.ROOT);
+        String b = key2.toLowerCase(Locale.ROOT);
+
+        // Alphabetical ordering for consistency
         if (a.compareTo(b) > 0) {
             String tmp = a;
             a = b;
@@ -118,38 +128,104 @@ public class UserSearchActivity extends AppCompatActivity {
     // ---------- Load all users from /users ----------
 
     private void loadUsersFromFirebase() {
+        Log.d(TAG, "Starting to load users from Firebase...");
+        Log.d(TAG, "Current user - ID: " + currentUserId + ", Username: '" + currentUsername + "'");
+
         usersRef.addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override public void onDataChange(@NonNull DataSnapshot snapshot) {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
                 List<UserDbHelper.SimpleUser> list = new ArrayList<>();
                 Map<Long, UserDbHelper.SimpleUser> unique = new LinkedHashMap<>();
 
+                Log.d(TAG, "Firebase snapshot children count: " + snapshot.getChildrenCount());
+
                 for (DataSnapshot child : snapshot.getChildren()) {
-                    AppUserFirebase fbUser = child.getValue(AppUserFirebase.class);
-                    if (fbUser == null) continue;
-
-                    long id = fbUser.id;
-                    String username = fbUser.username != null ? fbUser.username : "";
-                    String fullname = fbUser.fullname != null ? fbUser.fullname : "";
-
-                    boolean isMeById = (id == currentUserId);
-                    boolean isMeByUsername = currentUsername != null
-                            && username.equalsIgnoreCase(currentUsername);
-
-                    // Skip myself via id OR username match
-                    if (!isMeById && !isMeByUsername) {
-                        unique.put(id, new UserDbHelper.SimpleUser(id, username, fullname));
+                    String key = child.getKey();
+                    if (key == null) {
+                        continue;
                     }
+
+                    Log.d(TAG, "Processing node: " + key);
+
+                    // Skip system nodes
+                    if (key.equals("chats") ||
+                            key.equals("messages") ||
+                            key.equals("messages_v2") ||
+                            key.equals("ClubInfo") ||
+                            key.equals("Events") ||
+                            key.equals("Announcements") ||
+                            key.equals("announcements") ||
+                            key.equals("typing")) {
+                        Log.d(TAG, "Skipping system node: " + key);
+                        continue;
+                    }
+
+                    // Special handling for /users/ node - it contains nested users
+                    if (key.equals("users")) {
+                        Log.d(TAG, "Processing nested /users/ node");
+                        for (DataSnapshot userChild : child.getChildren()) {
+                            processUserNode(userChild, unique);
+                        }
+                        continue;
+                    }
+
+                    // Process root-level user nodes
+                    processUserNode(child, unique);
                 }
 
                 list.addAll(unique.values());
                 adapter.setUsers(list);
+                Log.d(TAG, "=== FINAL RESULT: Loaded " + list.size() + " users (excluding self) ===");
             }
 
-            @Override public void onCancelled(@NonNull DatabaseError error) {
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
                 Toast.makeText(UserSearchActivity.this,
                         "Failed to load users", Toast.LENGTH_SHORT).show();
+                Log.e(TAG, "Failed to load users: " + error.getMessage());
             }
         });
+    }
+
+    /**
+     * Process a single user node and add to the unique map if valid
+     */
+    private void processUserNode(DataSnapshot userSnapshot, Map<Long, UserDbHelper.SimpleUser> unique) {
+        AppUserFirebase fbUser = userSnapshot.getValue(AppUserFirebase.class);
+        if (fbUser == null) {
+            Log.w(TAG, "Failed to parse user from node: " + userSnapshot.getKey());
+            return;
+        }
+
+        long id = fbUser.id;
+        String username = fbUser.username != null ? fbUser.username : "";
+        String fullname = fbUser.fullname != null ? fbUser.fullname : "";
+
+        Log.d(TAG, "Found user in Firebase - ID: " + id + ", Username: '" + username + "', Fullname: '" + fullname + "'");
+
+        // Skip users without username
+        if (username.trim().isEmpty()) {
+            Log.w(TAG, "Skipping user with ID " + id + " - no username");
+            return;
+        }
+
+        boolean isMeById = (id == currentUserId);
+        boolean isMeByUsername = username.equalsIgnoreCase(currentUsername);
+
+        Log.d(TAG, "Comparing - isMeById: " + isMeById + ", isMeByUsername: " + isMeByUsername);
+
+        // Skip myself
+        if (!isMeById && !isMeByUsername) {
+            // Only add if not already in map (prevents duplicates from root and /users/)
+            if (!unique.containsKey(id)) {
+                unique.put(id, new UserDbHelper.SimpleUser(id, username, fullname));
+                Log.d(TAG, "✓ Added user: " + username + " (ID: " + id + ")");
+            } else {
+                Log.d(TAG, "User already added: " + username);
+            }
+        } else {
+            Log.d(TAG, "✗ Skipped self: " + username);
+        }
     }
 
     // ---------- Open existing DM or create new one ----------
@@ -162,20 +238,24 @@ public class UserSearchActivity extends AppCompatActivity {
         String otherUsername = otherUser.getUsername();
         if (otherUsername == null || otherUsername.trim().isEmpty()) {
             Toast.makeText(this, "User has no username", Toast.LENGTH_SHORT).show();
+            Log.e(TAG, "Attempted to chat with user without username");
             return;
         }
 
         String otherKey = otherUsername.toLowerCase(Locale.ROOT);
 
+        // ✅ SECURITY: Prevent self-chat
         if (otherKey.equals(currentUserKey)) {
             Toast.makeText(this, "You can't chat with yourself", Toast.LENGTH_SHORT).show();
+            Log.w(TAG, "Prevented self-chat attempt");
             return;
         }
 
         // 1) Build deterministic DM chat id based on the keys
         String chatId = buildDmChatId(currentUserKey, otherKey);
+        Log.d(TAG, "Opening/creating chat: " + chatId + " between " + currentUserKey + " and " + otherKey);
 
-        // What to show as chat name (can be improved later)
+        // What to show as chat name
         String defaultChatName = otherUsername;
 
         DatabaseReference chatRef = chatsRef.child(chatId);
@@ -185,10 +265,19 @@ public class UserSearchActivity extends AppCompatActivity {
             String chatNameToUse = defaultChatName;
 
             if (snapshot.exists()) {
+                // Chat exists - verify we're a participant
+                DataSnapshot participantsSnapshot = snapshot.child("participants");
+                if (!participantsSnapshot.hasChild(currentUserKey)) {
+                    Log.e(TAG, "Security violation: User " + currentUserKey + " not in existing chat " + chatId);
+                    Toast.makeText(this, "Access denied to this chat", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
                 String existingName = snapshot.child("name").getValue(String.class);
                 if (existingName != null && !existingName.trim().isEmpty()) {
                     chatNameToUse = existingName;
                 }
+                Log.d(TAG, "Chat exists: " + chatId);
             } else {
                 // Create new chat node under /chats/{chatId}
                 Map<String, Object> chatData = new LinkedHashMap<>();
@@ -201,18 +290,22 @@ public class UserSearchActivity extends AppCompatActivity {
                 chatData.put("participants", participants);
 
                 chatRef.setValue(chatData);
+                Log.d(TAG, "Created new chat: " + chatId);
             }
 
             // 3) Open DashboardActivity for this DM
             openChatScreen(chatId, chatNameToUse);
-        }).addOnFailureListener(e ->
-                Toast.makeText(this, "Error opening chat", Toast.LENGTH_SHORT).show());
+        }).addOnFailureListener(e -> {
+            Toast.makeText(this, "Error opening chat", Toast.LENGTH_SHORT).show();
+            Log.e(TAG, "Error opening chat: " + e.getMessage(), e);
+        });
     }
 
     private void openChatScreen(String chatId, String chatName) {
         Intent intent = new Intent(UserSearchActivity.this, DashboardActivity.class);
         intent.putExtra("CHAT_ID", chatId);
         intent.putExtra("CHAT_NAME", chatName);
+        intent.putExtra("CURRENT_USERNAME", currentUsername); // ✅ Fixed: Added missing parameter
         startActivity(intent);
         finish();
     }

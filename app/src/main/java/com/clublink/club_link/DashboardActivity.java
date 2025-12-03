@@ -11,6 +11,7 @@ import android.text.Editable;
 import android.text.TextUtils;
 import android.text.TextWatcher;
 import android.util.Log;
+import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
 import android.widget.ImageButton;
@@ -76,7 +77,7 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
     private SessionManager sessionManager;
     private long currentUserId;
     private String currentUsername;
-    private String myId;    // 🔑 identity key used in Firebase (matches ChatList/UserSearch)
+    private String myId;    // 🔑 CONSISTENT identity key (lowercase username)
     private String myName;  // display name in messages
 
     // Notification permission launcher
@@ -108,8 +109,8 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
         currentChatName = intent.getStringExtra("CHAT_NAME");
 
         if (currentChatId == null || currentChatId.trim().isEmpty()) {
-            Log.e(TAG, "CHAT_ID missing in intent – cannot open chat");
-            Toast.makeText(this, "Error: no chat selected", Toast.LENGTH_SHORT).show();
+            Log.e(TAG, "FATAL: CHAT_ID missing in intent. Cannot open chat.");
+            Toast.makeText(this, "Error: No chat selected.", Toast.LENGTH_SHORT).show();
             finish();
             return;
         }
@@ -121,23 +122,30 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
         // --------- User / Session ---------
         sessionManager = new SessionManager(this);
         currentUserId = sessionManager.getUserId();
-        currentUsername = sessionManager.getUsername();
 
-        if (currentUserId == -1) {
-            // truly not logged in
+        // PRIMARY: get who is logged in from SessionManager
+        String sessionUsername = sessionManager.getUsername();   // <-- use your actual getter name
+
+        // SECONDARY / BACKUP: username passed in Intent (if you still send it)
+        String intentUsername = intent.getStringExtra("CURRENT_USERNAME");
+
+        // Priority: session username first, then intent
+        if (sessionUsername != null && !sessionUsername.trim().isEmpty()) {
+            currentUsername = sessionUsername;
+        } else if (intentUsername != null && !intentUsername.trim().isEmpty()) {
+            currentUsername = intentUsername;
+        } else {
+            // Only if BOTH are missing do we force login again
+            Log.e(TAG, "FATAL: Cannot open chat without a valid username (session + intent both empty).");
+            Toast.makeText(this, "Your session has expired. Please log in again.", Toast.LENGTH_LONG).show();
             startActivity(new Intent(this, LoginActivity.class));
             finish();
             return;
         }
 
-        // Build the same identity key we used in ChatListActivity & UserSearchActivity
-        if (currentUsername != null && !currentUsername.trim().isEmpty()) {
-            myId = currentUsername.toLowerCase(Locale.ROOT);
-            myName = currentUsername;
-        } else {
-            myId = "uid_" + currentUserId;         // fallback identity
-            myName = "User-" + currentUserId;      // fallback display name
-        }
+        // The user's unique, consistent ID is their lowercase username.
+        myId = currentUsername.toLowerCase(Locale.ROOT);
+        myName = currentUsername; // The display name is the original username.
 
         Log.d(TAG, "Opening chat " + currentChatId + " as " + myName + " (key=" + myId + ")");
 
@@ -155,7 +163,7 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
         tvTypingIndicator = findViewById(R.id.tvTypingIndicator);
 
         tvChatName.setText(currentChatName);
-        tvTypingIndicator.setVisibility(android.view.View.GONE);
+        tvTypingIndicator.setVisibility(View.GONE);
 
         btnBack.setOnClickListener(v -> finish());
 
@@ -212,27 +220,25 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
 
     private void setupFirebaseMessagesListener() {
         messagesListener = new ChildEventListener() {
-
             @Override
             public void onChildAdded(@NonNull DataSnapshot snapshot, String prev) {
                 MessageModal msg = snapshot.getValue(MessageModal.class);
                 if (msg == null || msg.getId() == null) return;
 
-                // ✅ Only messages for THIS chat
-                if (!currentChatId.equals(msg.getChatId())) return;
+                // Ensure we only accept messages for this chat
+                if (!currentChatId.equals(msg.getChatId())) {
+                    Log.w(TAG, "Received a message for a different chat. Ignoring. ChatID: " + msg.getChatId());
+                    return;
+                }
 
-                // Avoid duplicates
-                if (!messageIds.add(msg.getId())) return;
+                if (!messageIds.add(msg.getId())) return; // Avoid duplicates
 
                 messages.add(msg);
-
-                ArrayList<MessageModal> copy = new ArrayList<>(messages);
-                adapter.submitList(copy);
-                recyclerView.scrollToPosition(copy.size() - 1);
+                adapter.submitList(new ArrayList<>(messages));
+                recyclerView.scrollToPosition(adapter.getItemCount() - 1);
             }
 
             @Override public void onChildChanged(@NonNull DataSnapshot snapshot, String prev) { }
-
             @Override public void onChildMoved(@NonNull DataSnapshot snapshot, String prev) { }
 
             @Override
@@ -242,15 +248,12 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
 
                 messageIds.remove(msg.getId());
                 messages.removeIf(m -> m.getId().equals(msg.getId()));
-
-                ArrayList<MessageModal> copy = new ArrayList<>(messages);
-                adapter.submitList(copy);
+                adapter.submitList(new ArrayList<>(messages));
             }
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
-                Toast.makeText(DashboardActivity.this,
-                        "Failed to load messages", Toast.LENGTH_SHORT).show();
+                Toast.makeText(DashboardActivity.this, "Failed to load messages", Toast.LENGTH_SHORT).show();
                 Log.e(TAG, "Messages listener cancelled: " + error.getMessage());
             }
         };
@@ -267,47 +270,45 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 boolean someoneTyping = false;
-
                 for (DataSnapshot child : snapshot.getChildren()) {
-                    String uid = child.getKey();
-                    Boolean typing = child.getValue(Boolean.class);
+                    String typingUserId = child.getKey();
+                    Boolean isTyping = child.getValue(Boolean.class);
 
-                    if (uid != null && typing != null && typing && !uid.equals(myId)) {
+                    if (typingUserId != null && isTyping != null && isTyping && !typingUserId.equals(myId)) {
                         someoneTyping = true;
                         break;
                     }
                 }
-
-                tvTypingIndicator.setVisibility(
-                        someoneTyping ? android.view.View.VISIBLE : android.view.View.GONE
-                );
+                tvTypingIndicator.setVisibility(someoneTyping ? View.VISIBLE : View.GONE);
             }
 
-            @Override public void onCancelled(@NonNull DatabaseError error) { }
+            @Override public void onCancelled(@NonNull DatabaseError error) {
+                Log.w(TAG, "Typing listener cancelled.", error.toException());
+            }
         };
-
         typingRef.addValueEventListener(typingListener);
     }
 
     private void setupTypingPublisher() {
         etMessage.addTextChangedListener(new TextWatcher() {
-
             private void setTyping(boolean typing) {
-                typingRef.child(myId).setValue(typing);
+                if (myId != null) {
+                    typingRef.child(myId).setValue(typing);
+                }
             }
 
             @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
 
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
-                boolean typing = s != null && s.length() > 0;
-                setTyping(typing);
+                boolean isCurrentlyTyping = s != null && s.length() > 0;
+                setTyping(isCurrentlyTyping);
 
                 if (typingTimeoutRunnable != null) {
                     typingHandler.removeCallbacks(typingTimeoutRunnable);
                 }
 
-                if (typing) {
+                if (isCurrentlyTyping) {
                     typingTimeoutRunnable = () -> setTyping(false);
                     typingHandler.postDelayed(typingTimeoutRunnable, 3000);
                 }
@@ -322,49 +323,63 @@ public class DashboardActivity extends AppCompatActivity implements MessageAdapt
     private void sendMessage() {
         String text = etMessage.getText().toString().trim();
         if (TextUtils.isEmpty(text)) {
-            Toast.makeText(this, "Type a message first", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        String id = messagesRef.push().getKey();
-        if (id == null) {
-            Toast.makeText(this, "Failed to send message", Toast.LENGTH_SHORT).show();
+        String messageId = messagesRef.push().getKey();
+        if (messageId == null) {
+            Toast.makeText(this, "Failed to create message ID.", Toast.LENGTH_SHORT).show();
             return;
         }
 
-        // Make sure this matches your MessageModal constructor
-        // (id, text, senderId, senderName, createdAt, chatId)
         MessageModal msg = new MessageModal(
-                id,
+                messageId,
                 text,
-                myId,     // 🔑 identity key (username or uid_X)
+                myId,     // CONSISTENT identity key (lowercase username)
                 myName,   // display name
                 System.currentTimeMillis(),
                 currentChatId
         );
 
         etMessage.setText("");
-        typingRef.child(myId).setValue(false);
+        if (myId != null) {
+            typingRef.child(myId).setValue(false);
+        }
 
-        messagesRef.child(id).setValue(msg)
-                .addOnFailureListener(e ->
-                        Toast.makeText(this, "Failed to send", Toast.LENGTH_SHORT).show()
-                );
+        messagesRef.child(messageId).setValue(msg)
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Failed to send message", e);
+                    Toast.makeText(this, "Failed to send", Toast.LENGTH_SHORT).show();
+                });
     }
+
+    // ---------------- LIFECYCLE & PROVIDER ----------------
 
     @Override
     protected void onDestroy() {
         super.onDestroy();
+        Log.d(TAG, "onDestroy: Cleaning up listeners for chat " + currentChatId);
 
+        // Properly remove all Firebase listeners
+
+        // 1. Remove the messages listener using the original query.
         if (messagesRef != null && messagesListener != null) {
-            messagesRef.removeEventListener(messagesListener);
+            messagesRef.orderByChild("chatId")
+                    .equalTo(currentChatId)
+                    .removeEventListener(messagesListener);
         }
 
-        if (typingRef != null && typingListener != null) {
-            typingRef.child(myId).setValue(false);
-            typingRef.removeEventListener(typingListener);
+        // 2. Remove the typing listener and clean up typing status.
+        if (typingRef != null) {
+            if (myId != null) {
+                typingRef.child(myId).setValue(false); // Clean up typing status
+            }
+            if (typingListener != null) {
+                typingRef.removeEventListener(typingListener);
+            }
         }
 
+        // 3. Clean up the handler to prevent memory leaks.
         if (typingHandler != null && typingTimeoutRunnable != null) {
             typingHandler.removeCallbacks(typingTimeoutRunnable);
         }

@@ -39,17 +39,25 @@ public class UserDbHelper extends SQLiteOpenHelper {
         onCreate(db);
     }
 
-    // Insert a new user (kept as you had it, returns success/failure)
-    public boolean insertUser(User user) {
+    /**
+     * Insert a new user and return the new user's ID.
+     * Returns -1 if insertion fails.
+     *
+     * ✅ FIXED: Now returns the actual user ID instead of just success/failure
+     */
+    public long insertUser(User user) {
         SQLiteDatabase db = this.getWritableDatabase();
         ContentValues cv = new ContentValues();
         cv.put(COL_FULLNAME, user.getFullname());
         cv.put(COL_EMAIL, user.getEmail());
         cv.put(COL_USERNAME, user.getUsername());
         cv.put(COL_PASSWORD, user.getPassword());
-        long result = db.insert(TABLE_USERS, null, cv);
+
+        // insert() returns the new row ID, or -1 if an error occurred
+        long userId = db.insert(TABLE_USERS, null, cv);
         db.close();
-        return result != -1;
+
+        return userId; // ✅ Return the actual ID
     }
 
     /**
@@ -107,7 +115,6 @@ public class UserDbHelper extends SQLiteOpenHelper {
         return user;
     }
 
-    // 🔹 NEW: Get a user by database id (for ProfileActivity screen)
     // Get a user by ID (for profile screen)
     public User getUserById(long id) {
         SQLiteDatabase db = this.getReadableDatabase();
@@ -135,7 +142,6 @@ public class UserDbHelper extends SQLiteOpenHelper {
         return user;
     }
 
-
     // Update password for a given username
     public boolean updatePassword(String username, String newPassword) {
         SQLiteDatabase db = this.getWritableDatabase();
@@ -146,17 +152,18 @@ public class UserDbHelper extends SQLiteOpenHelper {
         db.close();
         return rows > 0;
     }
+
     public boolean updatePasswordByEmail(String email, String newPassword) {
         SQLiteDatabase db = this.getWritableDatabase();
 
         ContentValues values = new ContentValues();
-        values.put("password", newPassword);  // use your actual column name
+        values.put(COL_PASSWORD, newPassword);
 
-        int rows = db.update("users", values, "email = ?", new String[]{ email });
+        int rows = db.update(TABLE_USERS, values, COL_EMAIL + " = ?", new String[]{email});
+        db.close();
 
-        return rows > 0;   // returns true if an account was updated
+        return rows > 0;
     }
-
 
     // Delete user by username
     public boolean deleteUser(String username) {
@@ -166,13 +173,14 @@ public class UserDbHelper extends SQLiteOpenHelper {
         return rows > 0;
     }
 
-    // 🔹 NEW: Delete user by database id (for "Delete account" in ProfileActivity)
+    // Delete user by database id (for "Delete account" in ProfileActivity)
     public boolean deleteUserById(long id) {
         SQLiteDatabase db = this.getWritableDatabase();
         int rows = db.delete(TABLE_USERS, COL_ID + " = ?", new String[]{String.valueOf(id)});
         db.close();
         return rows > 0;
     }
+
     // Simple user model for search list
     public static class SimpleUser {
         public long id;
@@ -184,7 +192,6 @@ public class UserDbHelper extends SQLiteOpenHelper {
             this.username = username;
             this.fullname = fullname;
         }
-
 
         public String getUsername() {
             return username;
@@ -224,6 +231,4 @@ public class UserDbHelper extends SQLiteOpenHelper {
         db.close();
         return users;
     }
-
 }
-

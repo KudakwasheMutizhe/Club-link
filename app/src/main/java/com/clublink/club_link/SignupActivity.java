@@ -7,6 +7,7 @@ import android.os.Handler;
 import android.os.Looper;
 import android.text.Editable;
 import android.text.TextWatcher;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
@@ -21,6 +22,8 @@ import java.util.Locale;
 import java.util.Random;
 
 public class SignupActivity extends AppCompatActivity {
+
+    private static final String TAG = "SignupActivity";
 
     EditText etFullname, etEmail, etUsername, etPassword;
     Button btnSignup;
@@ -58,7 +61,7 @@ public class SignupActivity extends AppCompatActivity {
         tvReqNoSpace = findViewById(R.id.tvReqNoSpace);
 
         FirebaseDatabase db = FirebaseDatabase.getInstance(DB_URL);
-        usersRef = db.getReference("users"); // we’ll key this by username.toLowerCase()
+        usersRef = db.getReference("users"); // we'll key this by username.toLowerCase()
 
         // 🔹 Live username availability check
         setupUsernameWatcher();
@@ -92,7 +95,6 @@ public class SignupActivity extends AppCompatActivity {
                 finish();
             });
         }
-
     }
 
     // ---------------- LIVE USERNAME CHECK ----------------
@@ -297,21 +299,17 @@ public class SignupActivity extends AppCompatActivity {
         UserDbHelper db = new UserDbHelper(SignupActivity.this);
         User newUser = new User(fullname, email, username, password);
 
-        // Insert into SQLite
-        if (db.insertUser(newUser)) {
+        // ✅ FIXED: insertUser now returns the new user's ID directly
+        long userId = db.insertUser(newUser);
 
-            // Get the SQLite id for this user
-            long userId = db.loginUser(username, password);
-            if (userId == -1) {
-                Toast.makeText(this, "Error retrieving user id", Toast.LENGTH_SHORT).show();
-                return;
-            }
+        if (userId != -1) {
+            Log.d(TAG, "User created in SQLite with ID: " + userId);
 
-            // Save login session (still using numeric id locally + username)
+            // Save login session with the correct ID
             SessionManager sm = new SessionManager(SignupActivity.this);
             sm.saveLogin(userId, username);
 
-            // Push profile into Firebase /users/{usernameKey}
+            // Push profile into Firebase /users/{usernameKey} with the CORRECT userId
             AppUserFirebase fbUser = new AppUserFirebase(
                     userId,
                     fullname,
@@ -322,6 +320,7 @@ public class SignupActivity extends AppCompatActivity {
             usersRef.child(usernameKey)
                     .setValue(fbUser)
                     .addOnSuccessListener(unused -> {
+                        Log.d(TAG, "User synced to Firebase with ID: " + userId);
                         Toast.makeText(SignupActivity.this,
                                 "Account created successfully!", Toast.LENGTH_SHORT).show();
 
@@ -329,15 +328,17 @@ public class SignupActivity extends AppCompatActivity {
                         finish();
                     })
                     .addOnFailureListener(e -> {
+                        Log.e(TAG, "Failed to sync user to Firebase", e);
                         Toast.makeText(SignupActivity.this,
                                 "Failed to save user online, but local account exists.",
                                 Toast.LENGTH_LONG).show();
                     });
 
         } else {
-            // Local SQLite found duplicate username (extra safety)
+            // Local SQLite found duplicate username or insertion failed
+            Log.e(TAG, "Failed to insert user into SQLite");
             Toast.makeText(SignupActivity.this,
-                    "Username already exists locally!", Toast.LENGTH_SHORT).show();
+                    "Username already exists or database error!", Toast.LENGTH_SHORT).show();
         }
     }
 }
